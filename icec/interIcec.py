@@ -72,7 +72,7 @@ class Morse:
         """ Morse potential
         - r : interatomic distance (Bohr, a.u.)
         """
-        return self.De * (1 - np.exp(-self.alpha*(r - self.req)))**2 - self.E0
+        return self.De * (1 - np.exp(-self.alpha*(r - self.req)))**2 - self.De
 
     def psi(self, n, r):
         """ n-th eigenstate of the Morse potential
@@ -89,7 +89,7 @@ class Morse:
         - v : vibrational quantum number
         """
         vphalf = v + 0.5
-        return self.we * vphalf - (self.we*vphalf)**2 / (4*self.De)
+        return self.we * vphalf - (self.we*vphalf)**2 / (4*self.De) - self.De
 
     def make_rgrid(self, resolution=1000, rmin=None, rmax=None):
         """ Make grid of interatomic distances.
