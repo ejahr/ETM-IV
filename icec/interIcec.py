@@ -1,5 +1,7 @@
 import numpy as np
 import scipy as sp
+import math
+import mpmath
 import matplotlib.pyplot as plt
 from itertools import repeat
 from multiprocessing import Pool
@@ -30,10 +32,8 @@ AU2MB = BOHR2M**2 / MB2M2
 # Width parameter
 # $$\alpha = \omega_0 \sqrt{\frac{\mu}{2 D_e}}$$
 # Parameters
-# \begin{align}
-# \lambda = \frac{\sqrt{2 m D_e}}{\alpha \hbar}
-# \end{align}
-# Energy levels
+# $$\lambda = \frac{\sqrt{2 m D_e}}{\alpha \hbar}$$
+# Energy levels for bound states
 # $$E_v = w_0 \left(v + \frac{1}{2}\right) - \frac{w_0^2}{4 D_e} \left(v + \frac{1}{2}\right)^2$$
 # $$v \in \left\{ n \in \mathbb{N}_0 \, \left| \, n < \lambda - \frac{1}{2} \right.\right\} $$
 
@@ -74,22 +74,53 @@ class Morse:
         """
         return self.De * (1 - np.exp(-self.alpha*(r - self.req)))**2 - self.De
 
-    def psi(self, n, r):
-        """ n-th eigenstate of the Morse potential
-        - n : vibrational quantum number
+    def psi(self, v, r):
+        """ v-th eigenstate of the Morse potential
         - r : interatomic distance (Bohr, a.u.)
         """
         z = 2 * self.lam * np.exp(-self.alpha * (r - self.req))
         # Normalization constant
-        Nn = np.sqrt( (2*self.lam-2*n-1) * sp.special.factorial(n) * self.alpha / sp.special.gamma(2*self.lam - n) )
-        return Nn * z**(self.lam-n-0.5) * np.exp(-z/2) * sp.special.genlaguerre(n, 2*self.lam-2*n-1)(z)
+        Nn = np.sqrt( (2*self.lam-2*v-1) * sp.special.factorial(v) * self.alpha / sp.special.gamma(2*self.lam - v) )
+        return Nn * z**(self.lam-v-0.5) * np.exp(-z/2) * sp.special.genlaguerre(v, 2*self.lam-2*v-1)(z)
 
     def E(self, v):
         """ Energy of the v-th eigenstate of the Morse potential (w.r.t. E(R_eq))
-        - v : vibrational quantum number
         """
         vphalf = v + 0.5
         return self.we * vphalf - (self.we*vphalf)**2 / (4*self.De) - self.De
+    
+    def norm_diss(self, E, nmax=10):
+        """ Energy normalization for dissociative (continuum) states of the Morse potential
+        source: https://iopscience.iop.org/article/10.1088/0953-4075/21/16/011
+        - E : energy of the state (a.u.)
+        """
+        s = self.lam - 0.5
+        epsilon = np.sqrt(2*self.mu*E)/self.alpha
+        product_n = math.prod(
+            np.exp(-s/n) / np.sqrt((1+s/n)**2 + (epsilon/n)**2)
+            for n in range(1, nmax + 1)
+        )
+        print("product", product_n)
+        factor1 = 1./(2*self.alpha*np.pi) 
+        factor2 = np.sqrt(self.mu * np.sinh(2*np.pi*epsilon) / (s**2 + epsilon**2))
+        factor3 = np.exp(np.euler_gamma*s)
+        return factor1 * factor2 * factor3 * product_n
+    
+    def psi_diss(self, E, r, norm = None):
+        """ Dissociative (continuum) states of the Morse potential
+        source: https://iopscience.iop.org/article/10.1088/0953-4075/21/16/011
+        mpmath.hyp1f1: https://mpmath.org/doc/current/functions/hypergeometric.html#hyp1f1
+        """
+        #if norm is None:
+        #    norm = self.norm_diss(E)
+        norm = (2*self.mu/E)**(1/4) / np.sqrt(np.pi)
+        s = self.lam - 0.5
+        z = 2 * self.lam * np.exp(-self.alpha * (r - self.req))
+        epsilon = np.sqrt(2*self.mu*E)/self.alpha
+        A = sp.special.gamma(-2j*epsilon)/sp.special.gamma(-s-1j*epsilon)
+        term1 = A * z**(1j*epsilon) * mpmath.hyp1f1(-s+1j*epsilon, 2j*epsilon+1, z)
+        term2 = np.conjugate(A) * z**(-1j*epsilon) * mpmath.hyp1f1(-s-1j*epsilon, -2j*epsilon+1, z)
+        return norm * np.exp(-z/2) * (term1 + term2)
 
     def make_rgrid(self, resolution=1000, rmin=None, rmax=None):
         """ Make grid of interatomic distances.
