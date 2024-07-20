@@ -89,38 +89,27 @@ class Morse:
         vphalf = v + 0.5
         return self.we * vphalf - (self.we*vphalf)**2 / (4*self.De) - self.De
     
-    def norm_diss(self, E, nmax=10):
-        """ Energy normalization for dissociative (continuum) states of the Morse potential
-        source: https://iopscience.iop.org/article/10.1088/0953-4075/21/16/011
-        - E : energy of the state (a.u.)
-        """
-        s = self.lam - 0.5
-        epsilon = np.sqrt(2*self.mu*E)/self.alpha
-        product_n = math.prod(
-            np.exp(-s/n) / np.sqrt((1+s/n)**2 + (epsilon/n)**2)
-            for n in range(1, nmax + 1)
-        )
-        print("product", product_n)
-        factor1 = 1./(2*self.alpha*np.pi) 
-        factor2 = np.sqrt(self.mu * np.sinh(2*np.pi*epsilon) / (s**2 + epsilon**2))
-        factor3 = np.exp(np.euler_gamma*s)
-        return factor1 * factor2 * factor3 * product_n
-    
     def psi_diss(self, E, r, norm = None):
         """ Dissociative (continuum) states of the Morse potential
-        source: https://iopscience.iop.org/article/10.1088/0953-4075/21/16/011
+        source: https://doi.org/10.1119/1.1485714
         mpmath.hyp1f1: https://mpmath.org/doc/current/functions/hypergeometric.html#hyp1f1
+        the function diverges for r->0
         """
         #if norm is None:
         #    norm = self.norm_diss(E)
-        norm = (2*self.mu/E)**(1/4) / np.sqrt(np.pi)
+        k = np.sqrt(2*self.mu*E)
+        epsilon = k/self.alpha
+        norm = np.sqrt(2*self.mu / np.pi / k)
         s = self.lam - 0.5
         z = 2 * self.lam * np.exp(-self.alpha * (r - self.req))
-        epsilon = np.sqrt(2*self.mu*E)/self.alpha
-        A = sp.special.gamma(-2j*epsilon)/sp.special.gamma(-s-1j*epsilon)
-        term1 = A * z**(1j*epsilon) * mpmath.hyp1f1(-s+1j*epsilon, 2j*epsilon+1, z)
-        term2 = np.conjugate(A) * z**(-1j*epsilon) * mpmath.hyp1f1(-s-1j*epsilon, -2j*epsilon+1, z)
-        return norm * np.exp(-z/2) * (term1 + term2)
+
+        C = np.sqrt(mpmath.hyp1f1(-s+1j*epsilon, 1+2j*epsilon, 0) / mpmath.hyp1f1(-s-1j*epsilon, 1-2j*epsilon, 0))
+        
+        psi_in = 1/C * mpmath.hyp1f1(-s+1j*epsilon, 1+2j*epsilon, z) * np.exp(-1j*k*r)
+        psi_out = -C * mpmath.hyp1f1(-s-1j*epsilon, 1-2j*epsilon, z) * np.exp(+1j*k*r)
+
+        psi = - norm/(2j) * np.exp(-z/2) *(psi_in + psi_out) 
+        return psi
 
     def make_rgrid(self, resolution=1000, rmin=None, rmax=None):
         """ Make grid of interatomic distances.
