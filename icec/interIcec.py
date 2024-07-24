@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sp
-import math
+import cmath
 import mpmath
 import matplotlib.pyplot as plt
 from itertools import repeat
@@ -54,7 +54,7 @@ class Morse:
     - rmax: r where V(r) = f*De, f<1
     """
     def __init__(self, mu, we, req, De, E0=0):
-        self.mu = mu # electron mass
+        self.mu = mu # in electron mass
         self.we = we*WAVENUMBER2HARTREE # Hartree
         self.req = req*ANGSTROM2BOHR # Bohr, a.u.
         self.De = De*WAVENUMBER2HARTREE # Hartree
@@ -93,22 +93,51 @@ class Morse:
         """ Dissociative (continuum) states of the Morse potential
         source: https://doi.org/10.1119/1.1485714
         mpmath.hyp1f1: https://mpmath.org/doc/current/functions/hypergeometric.html#hyp1f1
-        the function diverges for r->0
         """
-        #if norm is None:
-        #    norm = self.norm_diss(E)
         k = np.sqrt(2*self.mu*E)
-        epsilon = k/self.alpha
+        #epsilon = k/self.alpha
         norm = np.sqrt(2*self.mu / np.pi / k)
-        s = self.lam - 0.5
-        z = 2 * self.lam * np.exp(-self.alpha * (r - self.req))
 
-        C = np.sqrt(mpmath.hyp1f1(-s+1j*epsilon, 1+2j*epsilon, 0) / mpmath.hyp1f1(-s-1j*epsilon, 1-2j*epsilon, 0))
+        # purely imaginary variable
+        z0 = 2j * self.lam * np.exp(self.alpha * self.req)
+        z = z0 * np.exp(-self.alpha * r)
+
+        a_plus  = 0.5 + 1j*k/self.alpha - 1j*self.lam
+        a_minus = 0.5 - 1j*k/self.alpha - 1j*self.lam
+        b_plus  = 1 + 2j*k/self.alpha
+        b_minus = 1 - 2j*k/self.alpha
+
+        C = cmath.sqrt(mpmath.hyp1f1(a_plus, b_plus, z0) / mpmath.hyp1f1(a_minus, b_minus, z0))
         
-        psi_in = 1/C * mpmath.hyp1f1(-s+1j*epsilon, 1+2j*epsilon, z) * np.exp(-1j*k*r)
-        psi_out = -C * mpmath.hyp1f1(-s-1j*epsilon, 1-2j*epsilon, z) * np.exp(+1j*k*r)
+        psi_in = 1/C * mpmath.hyp1f1(a_plus, b_plus, z) * np.exp(-1j*k*r)
+        psi_out = - C * mpmath.hyp1f1(a_minus, b_minus, z) * np.exp(+1j*k*r)
 
-        psi = - norm/(2j) * np.exp(-z/2) *(psi_in + psi_out) 
+        psi = norm/(2j) * np.exp(-z/2) * (psi_in + psi_out) 
+        return psi
+    
+    def psi_diss_2(self, E, r, norm = None):
+        """ Dissociative (continuum) states of the Morse potential
+        source: https://doi.org/10.1119/1.1485714
+        mpmath.hyp1f1: https://mpmath.org/doc/current/functions/hypergeometric.html#hyp1f1
+        """
+        k = np.sqrt(2*self.mu*E)
+        #epsilon = k/self.alpha
+        norm = np.sqrt(2*self.mu / np.pi / k)
+
+        r0 = 1 / np.sqrt(2*self.mu*self.De)
+        z = 2/(self.alpha*r0) * np.exp(-self.alpha *(r - self.req))
+
+        a_plus  = 0.5 + 1j*k/self.alpha - 1/(self.alpha*r0)
+        a_minus = 0.5 - 1j*k/self.alpha - 1/(self.alpha*r0)
+        b_plus  = 1 + 2j*k/self.alpha
+        b_minus = 1 - 2j*k/self.alpha
+
+        C = cmath.sqrt(mpmath.hyp1f1(a_plus, b_plus, z0) / mpmath.hyp1f1(a_minus, b_minus, z0))
+        
+        psi_in = 1/C * mpmath.hyp1f1(a_plus, b_plus, z) * np.exp(-1j*k*r)
+        psi_out = - C * mpmath.hyp1f1(a_minus, b_minus, z) * np.exp(+1j*k*r)
+
+        psi = norm/(2j) * np.exp(-z/2) * (psi_in + psi_out) 
         return psi
 
     def make_rgrid(self, resolution=1000, rmin=None, rmax=None):
@@ -171,8 +200,7 @@ class Morse:
 # \end{equation}
 
 class InterICEC:
-    """ 
-    Input variables
+    """ Calculates the ICEC cross section including nuclear dynamics between the two units.
     - EA: Electron affinity of A (ev)
     - IP: Ionization potential of B (eV)
     - PI_xs_A: Function, Fit for Photoionization cross section of A- (eV -> Mb)
