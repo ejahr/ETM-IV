@@ -84,7 +84,8 @@ class Morse:
         return Nn * z**(self.lam-v-0.5) * np.exp(-z/2) * sp.special.genlaguerre(v, 2*self.lam-2*v-1)(z)
 
     def E(self, v):
-        """ Energy of the v-th eigenstate of the Morse potential (w.r.t. E(R_eq))
+        """ Energy of the v-th (bound) eigenstate of the Morse potential
+        E_bound < 0 
         """
         vphalf = v + 0.5
         return self.we * vphalf - (self.we*vphalf)**2 / (4*self.De) - self.De
@@ -321,21 +322,28 @@ class InterICEC:
                 spectrum.append([electronE_f*HARTREE2EV, xs*AU2MB, vf])
         return np.array(spectrum)
 
-    def define_overlap_parameters(self, a_A, a_B, C, d):
+    def define_overlap_parameters(self, a_A, a_B, C, d, gaussian_type = 's'):
         self.a_A = a_A
         self.a_B = a_B
         self.C = C
         self.d = d
+        self.gaussian_type = gaussian_type
 
     def calculate_overlap_FC(self, l, electronE, electronE_f, vi, vf):
         """ Calculate <psi_vi|r^-3 exp()|psi_vf>
         - vi, vf: initial and final vibrational quantum number
         """
         a_AB = self.a_A**2 + self.a_B**2
-        integrand = lambda r: (
-            np.conjugate(self.Morse_f.psi(vf,r)) * self.Morse_i.psi(vi,r) / r
-            * np.exp(-0.5*r**2/a_AB - 0.5*l*(l+1)/(electronE*(self.a_A+r)**2 + electronE_f*(self.a_B+r)**2))
-        )
+        if self.gaussian_type == 's': 
+            integrand = lambda r: (
+                np.conjugate(self.Morse_f.psi(vf,r)) * self.Morse_i.psi(vi,r) / r
+                * np.exp(-0.5*r**2/a_AB - 0.5*l*(l+1)/(electronE*(self.a_A+r)**2 + electronE_f*(self.a_B+r)**2))
+            )
+        elif self.gaussian_type == 'pz':
+            integrand = lambda r: (
+                np.conjugate(self.Morse_f.psi(vf,r)) * self.Morse_i.psi(vi,r)
+                * np.exp(-0.5*r**2/a_AB - 0.5*l*(l+1)/(electronE*(self.a_A+r)**2 + electronE_f*(self.a_B+r)**2))
+            )
         result, error = sp.integrate.quad(integrand, 0, np.inf)
         return result
     
@@ -349,7 +357,13 @@ class InterICEC:
         if electronE_f <= 0 :
             return 0
         else:
-            prefactor = 32*np.pi * (self.a_A*self.a_B/(self.a_A**2 + self.a_B**2))**3
+            if self.gaussian_type == 's':
+                prefactor = 4*np.pi * 8*(self.a_A*self.a_B/(self.a_A**2 + self.a_B**2))**3
+            elif self.gaussian_type == 'pz':
+                prefactor = 4*np.pi * 16*self.a_A**3*(self.a_B/(self.a_A**2 + self.a_B**2))**5
+            else:
+                print('Invalid gaussian type')
+                return None
             C = self.C * np.exp(-abs(electronE - electronE_f)/self.d)
             sum_l = sum(
                 (2*l+1) * abs(self.calculate_overlap_FC(l, electronE, electronE_f, vi, vf))**2
