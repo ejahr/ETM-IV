@@ -133,7 +133,7 @@ class ICEC:
         """
         a_AB = self.a_A**2 + self.a_B**2
         if gaussian_type == 'pz':
-            factor = 16 * self.a_A**3 * (self.a_B / a_AB)**5 * R
+            factor = 16 * self.a_A**3 * (self.a_B / a_AB)**5 * R**2
         elif gaussian_type == 's':
             factor = (2 * self.a_A * self.a_B / a_AB)**3
         else:
