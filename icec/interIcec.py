@@ -323,7 +323,7 @@ class InterICEC:
     def xs_continuum(self, vi, E, electronE, modifiedFC=None, norm=None):
         """ Calculate cross section [a.u.] for one bound-continuum vibrational transition.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
-        - modifiedFC : <psi_vi|r^-3|psi_vf>
+        - modifiedFC : <psi_vf|r^-3|psi_E>
         """
         if norm is None:
             self.Morse_f.define_box()
@@ -367,7 +367,7 @@ class InterICEC:
     
     def xs_vi_to_all_continuum(self, vi, energies):
         """ Calculate cross section [Mb] for given initial vibrational state over range of kinetic energies.
-        Sum over continuum states with energies E.
+        Sum over continuum states. Energies of the states are given as input (e.g. find solutions in a box with Mathematica)
         - vi: initial vibrational quantum number
         """   
         xs_vi = sum(
@@ -387,6 +387,17 @@ class InterICEC:
             if electronE_f >= 0:
                 xs = self.calculate_xs(vi, vf, electronE)
                 spectrum.append([electronE_f*HARTREE2EV, xs*AU2MB, vf])
+        return np.array(spectrum)
+    
+    def spectrum_continuum(self, electronE, energies, vi=0):
+        electronE *= EV2HARTREE
+        spectrum = []
+        for E in energies:
+            deltaE = E - self.Morse_i.E(vi)
+            electronE_f = electronE + self.IP_A - self.IP_B - deltaE
+            if electronE_f >= 0:
+                xs = self.xs_continuum(vi, E, electronE)
+                spectrum.append([electronE_f*HARTREE2EV, xs*AU2MB, E*HARTREE2EV])
         return np.array(spectrum)
 
     # ===== OVERLAP CONTRIBUTION =====
