@@ -310,6 +310,17 @@ class InterICEC:
             for vi in range(self.Morse_i.vmax + 1)
         )
         return xs/self.Morse_i.vmax 
+    
+    def calculate_spectrum(self, electronE, vi=0):
+        electronE *= EV2HARTREE
+        spectrum = []
+        for vf in range(self.Morse_f.vmax + 1):
+            deltaE = self.Morse_f.E(vf) - self.Morse_i.E(vi)
+            electronE_f = electronE + self.IP_A - self.IP_B - deltaE
+            if electronE_f >= 0:
+                xs = self.calculate_xs(vi, vf, electronE)
+                spectrum.append([electronE_f*HARTREE2EV, xs*AU2MB, vf])
+        return np.array(spectrum)
 
     # ===== BOUND - CONTINUUM TRANSITION =====
 
@@ -375,19 +386,6 @@ class InterICEC:
             for E in energies
         )
         return xs_vi
-
-    # ===== SPECTRUM =====
-    
-    def calculate_spectrum(self, electronE, vi=0):
-        electronE *= EV2HARTREE
-        spectrum = []
-        for vf in range(self.Morse_f.vmax + 1):
-            deltaE = self.Morse_f.E(vf) - self.Morse_i.E(vi)
-            electronE_f = electronE + self.IP_A - self.IP_B - deltaE
-            if electronE_f >= 0:
-                xs = self.calculate_xs(vi, vf, electronE)
-                spectrum.append([electronE_f*HARTREE2EV, xs*AU2MB, vf])
-        return np.array(spectrum)
     
     def spectrum_continuum(self, electronE, energies, vi=0):
         electronE *= EV2HARTREE
@@ -475,6 +473,19 @@ class InterICEC:
             )
         overlap_xs_vi = sum(list(result))
         return overlap_xs_vi
+    
+    def spectrum_overlap(self, electronE, vi=0):
+        electronE *= EV2HARTREE
+        spectrum = []
+        for vf in range(self.Morse_f.vmax + 1):
+            deltaE = self.Morse_f.E(vf) - self.Morse_i.E(vi)
+            electronE_f = electronE + self.IP_A - self.IP_B - deltaE
+            if electronE_f >= 0:
+                xs = self.calculate_overlap_xs(vi, vf, electronE)
+                spectrum.append([electronE_f*HARTREE2EV, xs*AU2MB, vf])
+        return np.array(spectrum)
+
+    # ===== PLOTTING FUNCTIONS =====
 
     def plot_xs(self, ax, ICEC_xs, label="ICEC", **kwargs):
         """ Plot the cross section [Mb] for a given vibrational transition w.r.t. the kinetic energy of the incoming electron.
