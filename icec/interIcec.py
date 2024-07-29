@@ -90,31 +90,30 @@ class Morse:
         vphalf = v + 0.5
         return self.we * vphalf - (self.we*vphalf)**2 / (4*self.De) - self.De
     
-    def psi_diss(self, E, r, norm = None):
+    def norm_diss(self, E, lower_bound = None, box_length = 100):
+        if lower_bound is None:
+            lower_bound = 3/5 * self.req # the wavefunctions diverge again for r -> 0
+        integrand = lambda r: np.conjugate(self.psi_diss(E,r))*self.psi_diss(E,r)
+        norm, error = sp.integrate.quad(integrand, lower_bound, box_length)
+        return 1/np.sqrt(norm)
+    
+    def psi_diss(self, E, r):
         """ Dissociative (continuum) states of the Morse potential
-        source: https://doi.org/10.1119/1.1485714
+        source: https://doi.org/10.1088/0953-4075/21/16/011
         mpmath.hyp1f1: https://mpmath.org/doc/current/functions/hypergeometric.html#hyp1f1
         """
         k = np.sqrt(2*self.mu*E)
-        #epsilon = k/self.alpha
-        norm = np.sqrt(2*self.mu / np.pi / k)
-
-        # purely imaginary variable
-        z0 = 2j * self.lam * np.exp(self.alpha * self.req)
+        epsilon = k/self.alpha
+        s = self.lam - 0.5
+        z0 = 2 * self.lam * np.exp(self.alpha * self.req)
         z = z0 * np.exp(-self.alpha * r)
 
-        a_plus  = 0.5 + 1j*k/self.alpha - 1j*self.lam
-        a_minus = 0.5 - 1j*k/self.alpha - 1j*self.lam
-        b_plus  = 1 + 2j*k/self.alpha
-        b_minus = 1 - 2j*k/self.alpha
+        A = sp.special.gamma(-2j*epsilon)/sp.special.gamma(-s-1j*epsilon)
+        psi_in = A * z**(1j*epsilon) * mpmath.hyp1f1(-s+1j*epsilon, 2j*epsilon+1, z)
+        psi_out = np.conjugate(A) * z**(-1j*epsilon) * mpmath.hyp1f1(-s-1j*epsilon, -2j*epsilon+1, z)
 
-        C = cmath.sqrt(mpmath.hyp1f1(a_plus, b_plus, z0) / mpmath.hyp1f1(a_minus, b_minus, z0))
-        
-        psi_in = 1/C * mpmath.hyp1f1(a_plus, b_plus, z) * np.exp(-1j*k*r)
-        psi_out = - C * mpmath.hyp1f1(a_minus, b_minus, z) * np.exp(+1j*k*r)
+        return np.exp(-z/2) * (psi_in + psi_out) 
 
-        psi = norm/(2j) * np.exp(-z/2) * (psi_in + psi_out) 
-        return psi
     
     def psi_diss_2(self, E, r, norm = None):
         """ Dissociative (continuum) states of the Morse potential
@@ -126,10 +125,14 @@ class Morse:
         norm = np.sqrt(2*self.mu / np.pi / k)
 
         r0 = 1 / np.sqrt(2*self.mu*self.De)
-        z = 2/(self.alpha*r0) * np.exp(-self.alpha *(r - self.req))
+        z0 = 2/(self.alpha*r0) * np.exp(self.alpha * self.req)
+        #z0 = 2j * self.lam * np.exp(self.alpha * self.req)
+        z = z0 * np.exp(-self.alpha * r)
 
         a_plus  = 0.5 + 1j*k/self.alpha - 1/(self.alpha*r0)
         a_minus = 0.5 - 1j*k/self.alpha - 1/(self.alpha*r0)
+        #a_plus  = 0.5 + 1j*k/self.alpha - 1j*self.lam
+        #a_minus = 0.5 - 1j*k/self.alpha - 1j*self.lam
         b_plus  = 1 + 2j*k/self.alpha
         b_minus = 1 - 2j*k/self.alpha
 
