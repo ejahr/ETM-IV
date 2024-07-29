@@ -90,11 +90,14 @@ class Morse:
         vphalf = v + 0.5
         return self.we * vphalf - (self.we*vphalf)**2 / (4*self.De) - self.De
     
-    def norm_diss(self, E, lower_bound = None, box_length = 100):
+    def define_box(self, lower_bound = None, box_length = 100):
         if lower_bound is None:
-            lower_bound = 3/5 * self.req # the wavefunctions diverge again for r -> 0
+            self.lower_bound = 3/5 * self.req # the wavefunctions diverge again for r -> 0, technically needs to be dependent on vf
+        self.box_length = box_length
+    
+    def norm_diss(self, E):
         integrand = lambda r: np.conjugate(self.psi_diss(E,r))*self.psi_diss(E,r)
-        norm, error = sp.integrate.quad(integrand, lower_bound, box_length)
+        norm, error = sp.integrate.quad(integrand, self.lower_bound, self.box_length)
         return 1/np.sqrt(norm)
     
     def psi_diss(self, E, r):
@@ -113,7 +116,6 @@ class Morse:
         psi_out = np.conjugate(A) * z**(-1j*epsilon) * mpmath.hyp1f1(-s-1j*epsilon, -2j*epsilon+1, z)
 
         return np.exp(-z/2) * (psi_in + psi_out) 
-
     
     def psi_diss_2(self, E, r, norm = None):
         """ Dissociative (continuum) states of the Morse potential
@@ -246,25 +248,29 @@ class InterICEC:
         maxEnergy = maxEnergy * EV2HARTREE
         self.energyGrid = np.arange(minEnergy, maxEnergy, (maxEnergy-minEnergy)/resolution, dtype=float)
 
-    def calculate_modified_FC_factor(self, vi, vf, returnError=False):
+    def calculate_modified_FC_factor(self, vi, vf):
         """ Calculate <psi_vi|r^-3|psi_vf>
         - vi, vf: initial and final vibrational quantum number
         """
         integrand =  lambda r: np.conjugate(self.Morse_f.psi(vf,r)) * self.Morse_i.psi(vi,r) / r**3
         result, error = sp.integrate.quad(integrand, 0, np.inf)
-        if returnError:
-            return result, error
+        return result
+    
+    def modified_FC_factor_continuum(self, vi, E):
+        """ <psi(E)|r^-3|psi_vi>
+        """
+        integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
+        result, error = sp.integrate.quad(integrand, self.Morse_f.lower_bound, self.Morse_f.box_length)
         return result
 
     def calculate_xs(self, vi, vf, electronE, modifiedFC=None):
         """ Calculate cross section [a.u.] for one vibrational transition.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
-        - deltaE : energy that goes into the vibrational transition (Hartree, a.u.)
         - modifiedFC : <psi_vi|r^-3|psi_vf>
         """
         if modifiedFC is None:
             modifiedFC = (abs(self.calculate_modified_FC_factor(vi,vf)))**2
-        deltaE = self.Morse_f.E(vf) - self.Morse_i.E(vi)
+        deltaE = self.Morse_f.E(vf) - self.Morse_i.E(vi)   # energy that goes into the vibrational transition (Hartree, a.u.)
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
         if electronE_f <= 0 :
             return 0
@@ -274,6 +280,28 @@ class InterICEC:
             omegaB = omegaA - deltaE
             PI_xs_B = self.PI_xs_B(omegaB*HARTREE2EV)*MB2AU
             return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B * modifiedFC / (electronE * omegaA * omegaB)
+        
+    def xs_continuum(self, vi, E, electronE, modifiedFC=None, norm=None):
+        """ Calculate cross section [a.u.] for one bound-continuum vibrational transition.
+        - electronE : kinetic energy of incoming electron (Hartree, a.u.)
+        - modifiedFC : <psi_vi|r^-3|psi_vf>
+        """
+        if norm is None:
+            self.Morse_f.define_box()
+            norm = self.Morse_f.norm_diss(E)
+        if modifiedFC is None:
+            modifiedFC = (abs(self.modified_FC_factor_continuum(vi,E)))**2
+        deltaE = E - self.Morse_i.E(vi)  # energy that goes into the vibrational transition (Hartree, a.u.)
+        electronE_f = electronE + self.IP_A - self.IP_B - deltaE
+        if electronE_f <= 0 :
+            return 0
+        else :
+            omegaA = electronE + self.IP_A
+            PI_xs_A = self.PI_xs_A(omegaA*HARTREE2EV)*MB2AU
+            omegaB = omegaA - deltaE
+            PI_xs_B = self.PI_xs_B(omegaB*HARTREE2EV)*MB2AU
+            return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B * norm * modifiedFC / (electronE * omegaA * omegaB)
+        
 
     def calculate_xs_vivf(self, vi, vf):
         """ Calculate cross section [Mb] for one vibrational transition over range of energies.
@@ -287,6 +315,21 @@ class InterICEC:
             for energy in self.energyGrid
         ])
         return xs_vivf * AU2MB
+    
+    def xs_vi_to_continuum(self, vi, E):
+        """ Calculate cross section [Mb] for one vibrational transition over range of energies.
+        """
+        if not hasattr(self, 'energyGrid'):
+            self.make_energy_grid()
+        if not hasattr(self.Morse_f, 'box_length'):
+            self.Morse_f.define_box()
+        norm = self.Morse_f.norm_diss(E)
+        modifiedFC = (abs(self.modified_FC_factor_continuum(vi,E)))**2
+        xs_vi_continuum = np.array([
+            self.calculate_xs(vi, E, energy, modifiedFC, norm)
+            for energy in self.energyGrid
+        ])
+        return xs_vi_continuum * AU2MB
 
     def calculate_xs_vi(self, vi):
         """ Calculate cross section [Mb] for given initial vibrational state over range of kinetic energies.
@@ -298,6 +341,17 @@ class InterICEC:
         xs_vi = sum(
             self.calculate_xs_vivf(vi, vf)
             for vf in range(self.Morse_f.vmax + 1)
+        )
+        return xs_vi
+    
+    def xs_vi_to_all_continuum(self, vi, energies):
+        """ Calculate cross section [Mb] for given initial vibrational state over range of kinetic energies.
+        Sum over continuum states.
+        - vi: initial vibrational quantum number
+        """   
+        xs_vi = sum(
+            self.xs_vi_to_continuum(vi, E)
+            for E in energies
         )
         return xs_vi
 
@@ -313,6 +367,8 @@ class InterICEC:
             for vi in range(self.Morse_i.vmax + 1)
         )
         return xs/self.Morse_i.vmax 
+
+    
     
     def calculate_spectrum(self, electronE, vi=0):
         electronE *= EV2HARTREE
