@@ -248,6 +248,8 @@ class InterICEC:
         maxEnergy = maxEnergy * EV2HARTREE
         self.energyGrid = np.arange(minEnergy, maxEnergy, (maxEnergy-minEnergy)/resolution, dtype=float)
 
+    # ===== BOUND - BOUND TRANSITION =====
+
     def calculate_modified_FC_factor(self, vi, vf):
         """ Calculate <psi_vi|r^-3|psi_vf>
         - vi, vf: initial and final vibrational quantum number
@@ -256,13 +258,6 @@ class InterICEC:
         result, error = sp.integrate.quad(integrand, 0, np.inf)
         return result
     
-    def modified_FC_factor_continuum(self, vi, E):
-        """ <psi(E)|r^-3|psi_vi>
-        """
-        integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
-        result, error = sp.integrate.quad(integrand, self.Morse_f.lower_bound, self.Morse_f.box_length)
-        return result
-
     def calculate_xs(self, vi, vf, electronE, modifiedFC=None):
         """ Calculate cross section [a.u.] for one vibrational transition.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
@@ -280,7 +275,51 @@ class InterICEC:
             omegaB = omegaA - deltaE
             PI_xs_B = self.PI_xs_B(omegaB*HARTREE2EV)*MB2AU
             return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B * modifiedFC / (electronE * omegaA * omegaB)
-        
+
+    def calculate_xs_vivf(self, vi, vf):
+        """ Calculate cross section [Mb] for one vibrational transition over range of energies.
+        - vi, vf: initial and final vibrational quantum number
+        """
+        if not hasattr(self, 'energyGrid'):
+            self.make_energy_grid()
+        modifiedFC = (abs(self.calculate_modified_FC_factor(vi,vf)))**2
+        xs_vivf = np.array([
+            self.calculate_xs(vi, vf, energy, modifiedFC)
+            for energy in self.energyGrid
+        ])
+        return xs_vivf * AU2MB
+
+    def calculate_xs_vi(self, vi):
+        """ Calculate cross section [Mb] for given initial vibrational state over range of kinetic energies.
+        Sum over final vibrational states.
+        - vi: initial vibrational quantum number
+        """   
+        xs_vi = sum(
+            self.calculate_xs_vivf(vi, vf)
+            for vf in range(self.Morse_f.vmax + 1)
+        )
+        return xs_vi
+    
+    def calculate_xs_tot(self):
+        """ Calculate cross section [Mb] for range of kinetic energies.
+        Sum over final and average over initial vibrational states (should be a Boltzmann average though).
+        - self.ICEC_xs_tot : Cross section (Mb)
+        """   
+        xs = sum(
+            self.calculate_xs_vi(vi)
+            for vi in range(self.Morse_i.vmax + 1)
+        )
+        return xs/self.Morse_i.vmax 
+
+    # ===== BOUND - CONTINUUM TRANSITION =====
+
+    def modified_FC_factor_continuum(self, vi, E):
+        """ <psi(E)|r^-3|psi_vi>
+        """
+        integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
+        result, error = sp.integrate.quad(integrand, self.Morse_f.lower_bound, self.Morse_f.box_length)
+        return result
+
     def xs_continuum(self, vi, E, electronE, modifiedFC=None, norm=None):
         """ Calculate cross section [a.u.] for one bound-continuum vibrational transition.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
@@ -301,21 +340,16 @@ class InterICEC:
             omegaB = omegaA - deltaE
             PI_xs_B = self.PI_xs_B(omegaB*HARTREE2EV)*MB2AU
             return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B * norm * modifiedFC / (electronE * omegaA * omegaB)
-        
-
-    def calculate_xs_vivf(self, vi, vf):
-        """ Calculate cross section [Mb] for one vibrational transition over range of energies.
-        - vi, vf: initial and final vibrational quantum number
-        """
-        if not hasattr(self, 'energyGrid'):
-            self.make_energy_grid()
-        modifiedFC = (abs(self.calculate_modified_FC_factor(vi,vf)))**2
-        xs_vivf = np.array([
-            self.calculate_xs(vi, vf, energy, modifiedFC)
-            for energy in self.energyGrid
-        ])
-        return xs_vivf * AU2MB
     
+    def xs_to_all_continuum(self, vi, electronE, energies):
+        omegaA = electronE + self.IP_A
+        max_energy = omegaA - self.IP_B + self.Morse_i.E(vi)
+        xs = sum(
+            self.xs_continuum(vi, E) 
+            for E in energies if E <= max_energy
+        )
+        return xs
+
     def xs_vi_to_continuum(self, vi, E):
         """ Calculate cross section [Mb] for one vibrational transition over range of energies.
         """
@@ -330,23 +364,10 @@ class InterICEC:
             for energy in self.energyGrid
         ])
         return xs_vi_continuum * AU2MB
-
-    def calculate_xs_vi(self, vi):
-        """ Calculate cross section [Mb] for given initial vibrational state over range of kinetic energies.
-        Sum over final vibrational states.
-        - vi: initial vibrational quantum number
-        """   
-        if not hasattr(self, 'energyGrid'):
-            self.make_energy_grid()
-        xs_vi = sum(
-            self.calculate_xs_vivf(vi, vf)
-            for vf in range(self.Morse_f.vmax + 1)
-        )
-        return xs_vi
     
     def xs_vi_to_all_continuum(self, vi, energies):
         """ Calculate cross section [Mb] for given initial vibrational state over range of kinetic energies.
-        Sum over continuum states.
+        Sum over continuum states with energies E.
         - vi: initial vibrational quantum number
         """   
         xs_vi = sum(
@@ -355,20 +376,7 @@ class InterICEC:
         )
         return xs_vi
 
-    def calculate_xs_tot(self):
-        """ Calculate cross section [Mb] for range of kinetic energies.
-        Sum over final and average over initial vibrational states (should be a Boltzmann average though).
-        - self.ICEC_xs_tot : Cross section (Mb)
-        """   
-        if not hasattr(self, 'energyGrid'):
-            self.make_energy_grid()
-        xs = sum(
-            self.calculate_xs_vi(vi)
-            for vi in range(self.Morse_i.vmax + 1)
-        )
-        return xs/self.Morse_i.vmax 
-
-    
+    # ===== SPECTRUM =====
     
     def calculate_spectrum(self, electronE, vi=0):
         electronE *= EV2HARTREE
@@ -380,6 +388,8 @@ class InterICEC:
                 xs = self.calculate_xs(vi, vf, electronE)
                 spectrum.append([electronE_f*HARTREE2EV, xs*AU2MB, vf])
         return np.array(spectrum)
+
+    # ===== OVERLAP CONTRIBUTION =====
 
     def define_overlap_parameters(self, a_A, a_B, C, d, gaussian_type = 's'):
         self.a_A = a_A
