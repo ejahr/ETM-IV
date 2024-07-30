@@ -92,12 +92,17 @@ class Morse:
     
     def define_box(self, lower_bound = None, box_length = 100):
         if lower_bound is None:
-            self.lower_bound = 3/5 * self.req # the wavefunctions diverge again for r -> 0, technically needs to be dependent on vf
+            self.lower_bound = 3/5 * self.req # the wavefunctions diverge for r -> 0, technically needs to be dependent on vf
         self.box_length = box_length
     
     def norm_diss(self, E):
+        #print("norm for  k", np.sqrt(2*self.mu*E))
+        ''' Integration over possibly highly-oscillating function
+        TODO: use https://mpmath.org/doc/current/calculus/integration.html instead
+        '''
         integrand = lambda r: np.conjugate(self.psi_diss(E,r))*self.psi_diss(E,r)
-        norm, error = sp.integrate.quad(integrand, self.lower_bound, self.box_length)
+        #norm, error = sp.integrate.quad(integrand, self.lower_bound, self.box_length)
+        norm = mpmath.quad(integrand, [self.lower_bound, self.box_length])
         return 1/np.sqrt(norm)
     
     def psi_diss(self, E, r):
@@ -109,13 +114,13 @@ class Morse:
         epsilon = k/self.alpha
         s = self.lam - 0.5
         z0 = 2 * self.lam * np.exp(self.alpha * self.req)
-        z = z0 * np.exp(-self.alpha * r)
+        z = z0 * mpmath.exp(-self.alpha * r) # needs to be mpmath for mpmath.quad to work
 
         A = sp.special.gamma(-2j*epsilon)/sp.special.gamma(-s-1j*epsilon)
         psi_in = A * z**(1j*epsilon) * mpmath.hyp1f1(-s+1j*epsilon, 2j*epsilon+1, z)
         psi_out = np.conjugate(A) * z**(-1j*epsilon) * mpmath.hyp1f1(-s-1j*epsilon, -2j*epsilon+1, z)
 
-        return np.exp(-z/2) * (psi_in + psi_out) 
+        return mpmath.exp(-z/2) * (psi_in + psi_out) # assume wavefunction is real
     
     def psi_diss_2(self, E, r, norm = None):
         """ Dissociative (continuum) states of the Morse potential
@@ -294,10 +299,15 @@ class InterICEC:
         Sum over final vibrational states.
         - vi: initial vibrational quantum number
         """   
-        xs_vi = sum(
-            self.calculate_xs_vivf(vi, vf)
-            for vf in range(self.Morse_f.vmax + 1)
-        )
+        #xs_vi = sum(
+        #    self.calculate_xs_vivf(vi, vf)
+        #    for vf in range(self.Morse_f.vmax + 1)
+        #)
+        with Pool() as pool:
+            result = pool.starmap(
+                self.calculate_xs_vivf, zip(repeat(vi), range(self.Morse_f.vmax + 1))
+            )
+        xs_vi = sum(list(result))
         return xs_vi
     
     def calculate_xs_tot(self):
@@ -326,8 +336,10 @@ class InterICEC:
 
     def modified_FC_factor_continuum(self, vi, E):
         """ <psi(E)|r^-3|psi_vi>
+        TODO: use https://mpmath.org/doc/current/calculus/integration.html instead
         """
-        integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
+        #print("modified FC k", np.sqrt(2*self.Morse_f.mu*E))
+        integrand =  lambda r: self.Morse_f.psi_diss(E,r) * self.Morse_i.psi(vi,r) / r**3
         result, error = sp.integrate.quad(integrand, self.Morse_f.lower_bound, self.Morse_f.box_length)
         return result
 
@@ -340,7 +352,7 @@ class InterICEC:
             self.Morse_f.define_box()
             norm = self.Morse_f.norm_diss(E)
         if modifiedFC is None:
-            modifiedFC = (abs(self.modified_FC_factor_continuum(vi,E)))**2
+            modifiedFC = (self.modified_FC_factor_continuum(vi,E))**2
         deltaE = E - self.Morse_i.E(vi)  # energy that goes into the vibrational transition (Hartree, a.u.)
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
         if electronE_f <= 0 :
@@ -371,20 +383,30 @@ class InterICEC:
         norm = self.Morse_f.norm_diss(E)
         modifiedFC = (abs(self.modified_FC_factor_continuum(vi,E)))**2
         xs_vi_continuum = np.array([
-            self.calculate_xs(vi, E, energy, modifiedFC, norm)
+            self.xs_continuum(vi, E, energy, modifiedFC, norm)
             for energy in self.energyGrid
         ])
         return xs_vi_continuum * AU2MB
     
-    def xs_vi_to_all_continuum(self, vi, energies):
+    def xs_vi_to_all_continuum(self, vi, energies, multi_threaded=True):
         """ Calculate cross section [Mb] for given initial vibrational state over range of kinetic energies.
         Sum over continuum states. Energies of the states are given as input (e.g. find solutions in a box with Mathematica)
         - vi: initial vibrational quantum number
-        """   
-        xs_vi = sum(
-            self.xs_vi_to_continuum(vi, E)
-            for E in energies
-        )
+        """
+        if multi_threaded:
+            with Pool() as pool:
+                result = pool.starmap(
+                    self.xs_vi_to_continuum, zip(repeat(vi), energies)
+                )
+            xs_vi = sum(list(result))
+        else:
+            xs_vi = sum(
+                self.xs_vi_to_continuum(vi, E)
+                for E in energies
+            )
+
+        maxE = (self.energyGrid[-1] + self.IP_A - self.IP_B + self.Morse_i.E(vi))*HARTREE2EV
+        print("Maximum vibrational E for highest initial kin.E:", maxE, 'eV' )
         return xs_vi
     
     def spectrum_continuum(self, electronE, energies, vi=0):
@@ -455,7 +477,7 @@ class InterICEC:
         - vi : initial vibrational quantum number
         - vf : final vibrational quantum number
         """
-        prefactor = 32*np.pi * (self.a_A*self.a_B/(self.a_A**2 + self.a_B**2))**3
+        #prefactor = 32*np.pi * (self.a_A*self.a_B/(self.a_A**2 + self.a_B**2))**3
         overlap_xs_vivf = np.array([
             self.calculate_overlap_xs(vi, vf, energy, lmax)
             for energy in self.energyGrid
