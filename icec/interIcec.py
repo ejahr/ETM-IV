@@ -100,11 +100,12 @@ class Morse:
     def norm_diss(self, E):
         #print("norm for  k", np.sqrt(2*self.mu*E))
         ''' Integration over possibly highly-oscillating function
-        TODO: use https://mpmath.org/doc/current/calculus/integration.html instead
         '''
         integrand = lambda r: np.conjugate(self.psi_diss(E,r))*self.psi_diss(E,r)
-        #norm, error = sp.integrate.quad(integrand, self.lower_bound, self.box_length)
-        norm = mpmath.quad(integrand, [self.lower_bound, self.box_length])
+        if E>0.25*EV2HARTREE:
+            norm = mpmath.quad(integrand, [self.lower_bound, self.box_length], maxdegree = 10)
+        else:  
+            norm = mpmath.quad(integrand, [self.lower_bound, self.box_length])
         return 1/mpmath.sqrt(norm)
     
     def psi_diss(self, E, r):
@@ -363,7 +364,8 @@ class InterICEC:
             PI_xs_A = self.PI_xs_A(omegaA*HARTREE2EV)*MB2AU
             omegaB = omegaA - deltaE
             PI_xs_B = self.PI_xs_B(omegaB*HARTREE2EV)*MB2AU
-            return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B * norm * modifiedFC / (electronE * omegaA * omegaB)
+            xs = self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B * norm * modifiedFC / (electronE * omegaA * omegaB)
+            return np.abs(xs)
     
     def xs_to_all_continuum(self, vi, electronE, energies):
         omegaA = electronE + self.IP_A
