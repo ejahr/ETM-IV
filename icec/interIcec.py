@@ -62,7 +62,8 @@ class Morse:
         
         self.alpha = self.we*np.sqrt(self.mu/2/self.De) 
         self.lam = np.sqrt(2 * self.mu * self.De) / self.alpha
-        self.vmax = int( self.lam - 0.5 )
+        self.z0 = 2 * self.lam * np.exp(self.alpha * self.req)
+        self.vmax = int(self.lam - 0.5)
         
         self.rmin = (self.req - np.log(2)/self.alpha)
         f = 0.999
@@ -78,10 +79,11 @@ class Morse:
         """ v-th eigenstate of the Morse potential
         - r : interatomic distance (Bohr, a.u.)
         """
-        z = 2 * self.lam * np.exp(-self.alpha * (r - self.req))
+        z = self.z0 * mpmath.exp(-self.alpha * r)
         # Normalization constant
         Nn = np.sqrt( (2*self.lam-2*v-1) * sp.special.factorial(v) * self.alpha / sp.special.gamma(2*self.lam - v) )
-        return Nn * z**(self.lam-v-0.5) * np.exp(-z/2) * sp.special.genlaguerre(v, 2*self.lam-2*v-1)(z)
+        #return Nn * z**(self.lam-v-0.5) * mpmath.exp(-z/2) * sp.special.genlaguerre(v, 2*self.lam-2*v-1)(z)
+        return Nn * z**(self.lam-v-0.5) * mpmath.exp(-z/2) * mpmath.laguerre(v, 2*self.lam-2*v-1, z)
 
     def E(self, v):
         """ Energy of the v-th (bound) eigenstate of the Morse potential
@@ -103,7 +105,7 @@ class Morse:
         integrand = lambda r: np.conjugate(self.psi_diss(E,r))*self.psi_diss(E,r)
         #norm, error = sp.integrate.quad(integrand, self.lower_bound, self.box_length)
         norm = mpmath.quad(integrand, [self.lower_bound, self.box_length])
-        return 1/np.sqrt(norm)
+        return 1/mpmath.sqrt(norm)
     
     def psi_diss(self, E, r):
         """ Dissociative (continuum) states of the Morse potential
@@ -113,14 +115,13 @@ class Morse:
         k = np.sqrt(2*self.mu*E)
         epsilon = k/self.alpha
         s = self.lam - 0.5
-        z0 = 2 * self.lam * np.exp(self.alpha * self.req)
-        z = z0 * mpmath.exp(-self.alpha * r) # needs to be mpmath for mpmath.quad to work
+        z = self.z0 * mpmath.exp(-self.alpha * r) # needs to be mpmath for mpmath.quad to work
 
-        A = sp.special.gamma(-2j*epsilon)/sp.special.gamma(-s-1j*epsilon)
+        A = mpmath.gamma(-2j*epsilon)/mpmath.gamma(-s-1j*epsilon)
         psi_in = A * z**(1j*epsilon) * mpmath.hyp1f1(-s+1j*epsilon, 2j*epsilon+1, z)
         psi_out = np.conjugate(A) * z**(-1j*epsilon) * mpmath.hyp1f1(-s-1j*epsilon, -2j*epsilon+1, z)
 
-        return mpmath.exp(-z/2) * (psi_in + psi_out) # assume wavefunction is real
+        return mpmath.exp(-z/2) * (psi_in + psi_out) 
     
     def psi_diss_2(self, E, r, norm = None):
         """ Dissociative (continuum) states of the Morse potential
@@ -132,9 +133,9 @@ class Morse:
         norm = np.sqrt(2*self.mu / np.pi / k)
 
         r0 = 1 / np.sqrt(2*self.mu*self.De)
-        z0 = 2/(self.alpha*r0) * np.exp(self.alpha * self.req)
-        #z0 = 2j * self.lam * np.exp(self.alpha * self.req)
-        z = z0 * np.exp(-self.alpha * r)
+        z0 = 2/(self.alpha*r0) * mpmath.exp(self.alpha * self.req)
+        #z0 = 2j * self.lam * mpmath.exp(self.alpha * self.req)
+        z = z0 * mpmath.exp(-self.alpha * r)
 
         a_plus  = 0.5 + 1j*k/self.alpha - 1/(self.alpha*r0)
         a_minus = 0.5 - 1j*k/self.alpha - 1/(self.alpha*r0)
@@ -145,10 +146,10 @@ class Morse:
 
         C = cmath.sqrt(mpmath.hyp1f1(a_plus, b_plus, z0) / mpmath.hyp1f1(a_minus, b_minus, z0))
         
-        psi_in = 1/C * mpmath.hyp1f1(a_plus, b_plus, z) * np.exp(-1j*k*r)
-        psi_out = - C * mpmath.hyp1f1(a_minus, b_minus, z) * np.exp(+1j*k*r)
+        psi_in = 1/C * mpmath.hyp1f1(a_plus, b_plus, z) * mpmath.exp(-1j*k*r)
+        psi_out = - C * mpmath.hyp1f1(a_minus, b_minus, z) * mpmath.exp(+1j*k*r)
 
-        psi = norm/(2j) * np.exp(-z/2) * (psi_in + psi_out) 
+        psi = norm/(2j) * mpmath.exp(-z/2) * (psi_in + psi_out) 
         return psi
 
     def make_rgrid(self, resolution=1000, rmin=None, rmax=None):
@@ -339,8 +340,8 @@ class InterICEC:
         TODO: use https://mpmath.org/doc/current/calculus/integration.html instead
         """
         #print("modified FC k", np.sqrt(2*self.Morse_f.mu*E))
-        integrand =  lambda r: self.Morse_f.psi_diss(E,r) * self.Morse_i.psi(vi,r) / r**3
-        result, error = sp.integrate.quad(integrand, self.Morse_f.lower_bound, self.Morse_f.box_length)
+        integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
+        result = mpmath.quad(integrand, [self.Morse_f.lower_bound, self.Morse_f.box_length])
         return result
 
     def xs_continuum(self, vi, E, electronE, modifiedFC=None, norm=None):
@@ -352,7 +353,7 @@ class InterICEC:
             self.Morse_f.define_box()
             norm = self.Morse_f.norm_diss(E)
         if modifiedFC is None:
-            modifiedFC = (self.modified_FC_factor_continuum(vi,E))**2
+            modifiedFC = (np.abs(self.modified_FC_factor_continuum(vi,E)))**2
         deltaE = E - self.Morse_i.E(vi)  # energy that goes into the vibrational transition (Hartree, a.u.)
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
         if electronE_f <= 0 :
