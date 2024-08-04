@@ -82,7 +82,6 @@ class Morse:
         z = self.z0 * mpmath.exp(-self.alpha * r)
         # Normalization constant
         Nn = np.sqrt( (2*self.lam-2*v-1) * sp.special.factorial(v) * self.alpha / sp.special.gamma(2*self.lam - v) )
-        #return Nn * z**(self.lam-v-0.5) * mpmath.exp(-z/2) * sp.special.genlaguerre(v, 2*self.lam-2*v-1)(z)
         return Nn * z**(self.lam-v-0.5) * mpmath.exp(-z/2) * mpmath.laguerre(v, 2*self.lam-2*v-1, z)
 
     def E(self, v):
@@ -97,11 +96,9 @@ class Morse:
         return self.req + np.log(arg)/self.alpha
     
     def define_box(self, box_length = 10*ANGSTROM2BOHR): #lower_bound = None, 
-        #if lower_bound is None:
-        #    self.lower_bound = 3/5 * self.req # the wavefunctions diverge for r -> 0, technically needs to be dependent on vf
         self.box_length = box_length
 
-    def get_lower_bound(self, E, precision=1000):
+    def get_lower_bound(self, E, precision=100):
         ''' Get lower bound for neglecting the diverging r->0 behaviour.
         '''
         R = self.intersection_V(E)
@@ -114,7 +111,6 @@ class Morse:
         return R_samples[min_index]
     
     def norm_diss(self, E, lower_bound=None):
-        #print("norm for  k", np.sqrt(2*self.mu*E))
         ''' Integration over possibly highly-oscillating function
         '''
         if lower_bound is None:
