@@ -398,8 +398,9 @@ class InterICEC:
             self.make_energy_grid()
         if not hasattr(self.Morse_f, 'box_length'):
             self.Morse_f.define_box()
-        norm = self.Morse_f.norm_diss(E)
-        modifiedFC = (abs(self.modified_FC_factor_continuum(vi,E)))**2
+        lower_bound = self.Morse_f.get_lower_bound(E)
+        norm = self.Morse_f.norm_diss(E, lower_bound=lower_bound)
+        modifiedFC = (np.abs(self.modified_FC_factor_continuum(vi,E,lower_bound=lower_bound)))**2
         xs_vi_continuum = np.array([
             self.xs_continuum(vi, E, energy, modifiedFC, norm)
             for energy in self.energyGrid
