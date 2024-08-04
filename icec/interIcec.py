@@ -92,20 +92,34 @@ class Morse:
         vphalf = v + 0.5
         return self.we * vphalf - (self.we*vphalf)**2 / (4*self.De) - self.De
     
-    def define_box(self, lower_bound = None, box_length = 100):
-        if lower_bound is None:
-            self.lower_bound = 3/5 * self.req # the wavefunctions diverge for r -> 0, technically needs to be dependent on vf
-        self.box_length = box_length
+    def intersection_V(self, E):
+        return self.req + np.log((-self.De + np.sqrt(self.De^2 + self.De*E))/E)/self.alpha
     
-    def norm_diss(self, E):
+    def define_box(self, box_length = 10*ANGSTROM2BOHR): #lower_bound = None, 
+        #if lower_bound is None:
+        #    self.lower_bound = 3/5 * self.req # the wavefunctions diverge for r -> 0, technically needs to be dependent on vf
+        self.box_length = box_length
+
+    def get_lower_bound(self, E, precision=1000):
+        ''' Finds the lower bound for neglecting the diverging r->0 behaviour.
+        '''
+        R = self.intersection_V(E)
+        r = np.linspace(R/2, R, num=precision)
+        samples = np.abs(self.psi_diss(r))
+        min_index = np.argmin(samples)
+        return r(min_index)
+    
+    def norm_diss(self, E, lower_bound=None):
         #print("norm for  k", np.sqrt(2*self.mu*E))
         ''' Integration over possibly highly-oscillating function
         '''
+        if lower_bound is None:
+            self.get_lower_bound(E)
         integrand = lambda r: np.conjugate(self.psi_diss(E,r))*self.psi_diss(E,r)
         if E>0.25*EV2HARTREE:
-            norm = mpmath.quad(integrand, [self.lower_bound, self.box_length], maxdegree = 10)
+            norm = mpmath.quad(integrand, [lower_bound, self.box_length], maxdegree = 10)
         else:  
-            norm = mpmath.quad(integrand, [self.lower_bound, self.box_length])
+            norm = mpmath.quad(integrand, [lower_bound, self.box_length])
         return 1/mpmath.sqrt(norm)
     
     def psi_diss(self, E, r):
@@ -336,13 +350,14 @@ class InterICEC:
 
     # ===== BOUND - CONTINUUM TRANSITION =====
 
-    def modified_FC_factor_continuum(self, vi, E):
+    def modified_FC_factor_continuum(self, vi, E, lower_bound = None):
         """ <psi(E)|r^-3|psi_vi>
-        TODO: use https://mpmath.org/doc/current/calculus/integration.html instead
         """
         #print("modified FC k", np.sqrt(2*self.Morse_f.mu*E))
+        if lower_bound is None:
+            self.Morse_f.get_lower_bound(E)
         integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
-        result = mpmath.quad(integrand, [self.Morse_f.lower_bound, self.Morse_f.box_length])
+        result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
         return result
 
     def xs_continuum(self, vi, E, electronE, modifiedFC=None, norm=None):
