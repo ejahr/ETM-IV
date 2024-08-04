@@ -107,7 +107,6 @@ class Morse:
             np.abs(self.psi_diss(E,r)) for r in R_samples
         ])
         min_index = np.argmin(psi_samples)
-        print(R_samples[min_index])
         return R_samples[min_index]
     
     def norm_diss(self, E, lower_bound=None):
@@ -380,6 +379,7 @@ class InterICEC:
             omegaB = omegaA - deltaE
             PI_xs_B = self.PI_xs_B(omegaB*HARTREE2EV)*MB2AU
             xs = self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B * norm * modifiedFC / (electronE * omegaA * omegaB)
+            #return [electronE*HARTREE2EV, electronE_f*HARTREE2EV, np.abs(xs)*AU2MB, E*HARTREE2EV]
             return np.abs(xs)
     
     def xs_to_all_continuum(self, vi, electronE, energies):
@@ -428,16 +428,22 @@ class InterICEC:
         print("Maximum vibrational E for highest initial kin.E:", maxE, 'eV' )
         return xs_vi
     
+    def function_for_spectrum(self, vi, electronE, E):
+        deltaE = E - self.Morse_i.E(vi)
+        electronE_f = electronE + self.IP_A - self.IP_B - deltaE
+        if electronE_f < 0:
+            return [electronE_f*HARTREE2EV, 0, E*HARTREE2EV]
+        else:
+            xs = self.xs_continuum(vi, E, electronE)
+            return electronE_f*HARTREE2EV, xs*AU2MB, E*HARTREE2EV
+        
     def spectrum_continuum(self, electronE, energies, vi=0):
         electronE *= EV2HARTREE
-        spectrum = []
-        for E in energies:
-            deltaE = E - self.Morse_i.E(vi)
-            electronE_f = electronE + self.IP_A - self.IP_B - deltaE
-            if electronE_f >= 0:
-                xs = self.xs_continuum(vi, E, electronE)
-                spectrum.append([electronE_f*HARTREE2EV, xs*AU2MB, E*HARTREE2EV])
-        return np.array(spectrum)
+        with Pool() as pool:
+            result = pool.starmap(
+                self.function_for_spectrum, zip(repeat(vi), repeat(electronE), energies)
+            )
+        return np.array(result)
 
     # ===== OVERLAP CONTRIBUTION =====
 
