@@ -349,26 +349,25 @@ class InterICEC:
 
     # ===== BOUND - CONTINUUM TRANSITION =====
 
-    def modified_FC_factor_continuum(self, vi, E, lower_bound = None):
-        """ <psi(E)|r^-3|psi_vi>
+    def modified_FC_factor_continuum(self, vi, E, lower_bound=None, norm=None):
+        """ |<psi(E)|r^-3|psi_vi>|^2
+        norm: normalization constant for the vibrational continuum state
         """
-        #print("modified FC k", np.sqrt(2*self.Morse_f.mu*E))
         if lower_bound is None:
             lower_bound = self.Morse_f.get_lower_bound(E)
+        if norm is None:
+            norm = self.Morse_f.norm_diss(E)
         integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
         result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
-        return result
+        return (np.abs(norm*result))**2  
 
     def xs_continuum(self, vi, E, electronE, modifiedFC=None, norm=None):
         """ Calculate cross section [a.u.] for one bound-continuum vibrational transition.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         - modifiedFC : <psi_vf|r^-3|psi_E>
         """
-        if norm is None:
-            self.Morse_f.define_box()
-            norm = self.Morse_f.norm_diss(E)
         if modifiedFC is None:
-            modifiedFC = (np.abs(self.modified_FC_factor_continuum(vi,E)))**2
+            modifiedFC = self.modified_FC_factor_continuum(vi, E, norm=norm)
         deltaE = E - self.Morse_i.E(vi)  # energy that goes into the vibrational transition (Hartree, a.u.)
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
         if electronE_f <= 0 :
@@ -378,8 +377,7 @@ class InterICEC:
             PI_xs_A = self.PI_xs_A(omegaA*HARTREE2EV)*MB2AU
             omegaB = omegaA - deltaE
             PI_xs_B = self.PI_xs_B(omegaB*HARTREE2EV)*MB2AU
-            xs = self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B * norm * modifiedFC / (electronE * omegaA * omegaB)
-            #return [electronE*HARTREE2EV, electronE_f*HARTREE2EV, np.abs(xs)*AU2MB, E*HARTREE2EV]
+            xs = self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B * modifiedFC / (electronE * omegaA * omegaB)
             return np.abs(xs)
     
     def xs_to_all_continuum(self, vi, electronE, energies):
@@ -400,9 +398,9 @@ class InterICEC:
             self.Morse_f.define_box()
         lower_bound = self.Morse_f.get_lower_bound(E)
         norm = self.Morse_f.norm_diss(E, lower_bound=lower_bound)
-        modifiedFC = (np.abs(self.modified_FC_factor_continuum(vi,E,lower_bound=lower_bound)))**2
+        modifiedFC = self.modified_FC_factor_continuum(vi, E, lower_bound=lower_bound, norm=norm)
         xs_vi_continuum = np.array([
-            self.xs_continuum(vi, E, energy, modifiedFC, norm)
+            self.xs_continuum(vi, E, energy, modifiedFC)
             for energy in self.energyGrid
         ])
         return xs_vi_continuum * AU2MB
