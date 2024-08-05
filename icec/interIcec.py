@@ -115,10 +115,19 @@ class Morse:
         if lower_bound is None:
             lower_bound = self.get_lower_bound(E)
         integrand = lambda r: np.conjugate(self.psi_diss(E,r))*self.psi_diss(E,r)
-        if E>0.25*EV2HARTREE:
-            norm = mpmath.quad(integrand, [lower_bound, self.box_length], maxdegree = 10)
-        else:  
+        num_intervals = int(self.box_length/np.pi * np.sqrt(2*self.mu*E) / 10) # approximate oscillating behaviour by particle in a box 
+        if num_intervals < 2:
             norm = mpmath.quad(integrand, [lower_bound, self.box_length])
+        else:
+            intervals = np.linspace(lower_bound, self.box_length, num_intervals + 1)
+            norm = 0
+            for i in range(num_intervals):
+                norm += mpmath.quad(integrand, [intervals[i], intervals[i+1]])
+
+        #if E>0.5*EV2HARTREE:
+        #    norm = mpmath.quad(integrand, [lower_bound, self.box_length], maxdegree = 10)
+        #else:  
+        #    norm = mpmath.quad(integrand, [lower_bound, self.box_length])
         return 1/mpmath.sqrt(norm)
     
     def psi_diss(self, E, r):
@@ -259,14 +268,17 @@ class InterICEC:
         """
         self.Morse_f = Morse(mu, we, req, De)
 
-    def make_energy_grid(self, minEnergy=0, maxEnergy=10, resolution=100): 
+    def make_energy_grid(self, minEnergy=0, maxEnergy=10, resolution=100, geometric=True): 
         """ Make grid of incoming electron energies.
         - Energy (eV)
         - resolution : number of grid points
         """
         minEnergy = minEnergy * EV2HARTREE
         maxEnergy = maxEnergy * EV2HARTREE
-        self.energyGrid = np.arange(minEnergy, maxEnergy, (maxEnergy-minEnergy)/resolution, dtype=float)
+        if geometric:
+            self.energyGrid = np.geomspace(minEnergy, maxEnergy, resolution)
+        else:
+            self.energyGrid = np.arange(minEnergy, maxEnergy, (maxEnergy-minEnergy)/resolution, dtype=float)
 
     # ===== BOUND - BOUND TRANSITION =====
 
@@ -352,19 +364,30 @@ class InterICEC:
     def modified_FC_factor_continuum(self, vi, E, lower_bound=None, norm=None):
         """ |<psi(E)|r^-3|psi_vi>|^2
         norm: normalization constant for the vibrational continuum state
+        divide integration into intervals to deal with the highly oscillating integrand
         """
         if lower_bound is None:
             lower_bound = self.Morse_f.get_lower_bound(E)
         if norm is None:
             norm = self.Morse_f.norm_diss(E)
         integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
-        result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
+
+        num_intervals = int(self.Morse_f.box_length/np.pi * np.sqrt(2*self.Morse_f.mu*E) / 10) # approximate oscillating behaviour by particle in a box 
+        if num_intervals < 2:
+            result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
+        else:
+            intervals = np.linspace(lower_bound, self.Morse_f.box_length, num_intervals + 1)
+            result = 0
+            for i in range(num_intervals):
+                result += mpmath.quad(integrand, [intervals[i], intervals[i+1]])
+
+        #result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
         return (np.abs(norm*result))**2  
 
     def xs_continuum(self, vi, E, electronE, modifiedFC=None, norm=None):
         """ Calculate cross section [a.u.] for one bound-continuum vibrational transition.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
-        - modifiedFC : <psi_vf|r^-3|psi_E>
+        - modifiedFC : |<psi_vf|r^-3|psi_E>|^2
         """
         if modifiedFC is None:
             modifiedFC = self.modified_FC_factor_continuum(vi, E, norm=norm)
