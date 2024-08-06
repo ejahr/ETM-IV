@@ -372,7 +372,7 @@ class InterICEC:
             norm = self.Morse_f.norm_diss(E)
         integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
 
-        num_intervals = int(self.Morse_f.box_length/np.pi * np.sqrt(2*self.Morse_f.mu*E) / 10) # approximate oscillating behaviour by particle in a box 
+        num_intervals = int(self.Morse_f.box_length/np.pi * np.sqrt(2*self.Morse_f.mu*E) / 10) # approximate oscillating behaviour from particle in a box 
         if num_intervals < 2:
             result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
         else:
@@ -467,13 +467,14 @@ class InterICEC:
         return np.array(result)
 
     # ===== OVERLAP CONTRIBUTION =====
-
     def define_overlap_parameters(self, a_A, a_B, C, d, gaussian_type = 's'):
         self.a_A = a_A
         self.a_B = a_B
         self.C = C
         self.d = d
         self.gaussian_type = gaussian_type
+
+    # ===== OVERLAP : BOUND - BOUND TRANSITION =====
 
     def calculate_overlap_FC(self, l, electronE, electronE_f, vi, vf):
         """ Calculate <psi_vi|r^-3 exp()|psi_vf>
@@ -519,11 +520,8 @@ class InterICEC:
             return xs
 
     def calculate_overlap_xs_vivf(self, vi, vf, lmax):
-        """ Calculate cross section [Mb] of the overlap contribution for one vibrational transition.
-        - vi : initial vibrational quantum number
-        - vf : final vibrational quantum number
+        """ Calculate cross section [Mb] of the overlap contribution for one vibrational transition vi -> vf.
         """
-        #prefactor = 32*np.pi * (self.a_A*self.a_B/(self.a_A**2 + self.a_B**2))**3
         overlap_xs_vivf = np.array([
             self.calculate_overlap_xs(vi, vf, energy, lmax)
             for energy in self.energyGrid
@@ -531,8 +529,7 @@ class InterICEC:
         return overlap_xs_vivf * AU2MB
 
     def calculate_overlap_xs_vi(self, vi, lmax):
-        """ Calculate cross section [Mb] for given initial vibrational state. Sum over final vibrational states.
-        - vi: initial vibrational quantum number
+        """ Calculate cross section [Mb] for given initial vibrational state vi. Sum over final vibrational states.
         THIS WORKS ONLY IN JUPYTER ON UNIX BASED SYSTEMS
         """  
         with Pool() as pool:
@@ -552,6 +549,40 @@ class InterICEC:
                 xs = self.calculate_overlap_xs(vi, vf, electronE)
                 spectrum.append([electronE_f*HARTREE2EV, xs*AU2MB, vf])
         return np.array(spectrum)
+    
+    # ===== OVERLAP : BOUND - CONTINUUM TRANSITION =====    
+    
+    def overlap_continuum_FC(self, l, electronE, electronE_f, vi, E, lower_bound=None, norm=None):
+        """ Calculate |<psi_vi|r^-3 exp()|psi_vf>|^2
+        - vi, vf: initial and final vibrational quantum number
+        """
+        if lower_bound is None:
+            lower_bound = self.Morse_f.get_lower_bound(E)
+        if norm is None:
+            norm = self.Morse_f.norm_diss(E)
+
+        a_AB = self.a_A**2 + self.a_B**2
+        if self.gaussian_type == 's': 
+            integrand = lambda r: (
+                mpmath.conj(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r
+                * mpmath.exp(-0.5*r**2/a_AB - 0.5*l*(l+1)/(electronE*(self.a_A+r)**2 + electronE_f*(self.a_B+r)**2))
+            )
+        elif self.gaussian_type == 'pz':
+            integrand = lambda r: (
+                mpmath.conj(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r)
+                * mpmath.exp(-0.5*r**2/a_AB - 0.5*l*(l+1)/(electronE*(self.a_A+r)**2 + electronE_f*(self.a_B+r)**2))
+            )
+        
+        num_intervals = int(self.Morse_f.box_length/np.pi * np.sqrt(2*self.Morse_f.mu*E) / 10) # approximate oscillating behaviour by particle in a box 
+        if num_intervals < 2:
+            result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
+        else:
+            intervals = np.linspace(lower_bound, self.Morse_f.box_length, num_intervals + 1)
+            result = 0
+            for i in range(num_intervals):
+                result += mpmath.quad(integrand, [intervals[i], intervals[i+1]])
+
+        return (np.abs(norm*result))**2
 
     # ===== PLOTTING FUNCTIONS =====
 
