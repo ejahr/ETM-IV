@@ -467,12 +467,13 @@ class InterICEC:
         return np.array(result)
 
     # ===== OVERLAP CONTRIBUTION =====
-    def define_overlap_parameters(self, a_A, a_B, C, d, gaussian_type = 's'):
+    def define_overlap_parameters(self, a_A, a_B, C, d, lmax = 10, gaussian_type = 's'):
         self.a_A = a_A
         self.a_B = a_B
         self.C = C
         self.d = d
-        self.gaussian_type = gaussian_type
+        self.lmax = lmax                        # upper bound for the sum over l
+        self.gaussian_type = gaussian_type      # gaussian orbital type for Sab
 
     # ===== OVERLAP : BOUND - BOUND TRANSITION =====
 
@@ -508,9 +509,6 @@ class InterICEC:
                 prefactor = 4*np.pi * 8*(self.a_A*self.a_B/(self.a_A**2 + self.a_B**2))**3
             elif self.gaussian_type == 'pz':
                 prefactor = 4*np.pi * 16*self.a_A**3*(self.a_B/(self.a_A**2 + self.a_B**2))**5
-            else:
-                print('Invalid gaussian type')
-                return None
             C = self.C * np.exp(-abs(electronE - electronE_f)/self.d)
             sum_l = sum(
                 (2*l+1) * abs(self.calculate_overlap_FC(l, electronE, electronE_f, vi, vf))**2
@@ -551,16 +549,10 @@ class InterICEC:
         return np.array(spectrum)
     
     # ===== OVERLAP : BOUND - CONTINUUM TRANSITION =====    
-    
-    def overlap_continuum_FC(self, l, electronE, electronE_f, vi, E, lower_bound=None, norm=None):
-        """ Calculate |<psi_vi|r^-3 exp()|psi_vf>|^2
-        - vi, vf: initial and final vibrational quantum number
-        """
-        if lower_bound is None:
-            lower_bound = self.Morse_f.get_lower_bound(E)
-        if norm is None:
-            norm = self.Morse_f.norm_diss(E)
 
+    def overlap_continuum_FC(self, l, electronE, electronE_f, vi, E, lower_bound, norm):
+        """ Calculate integral over R-dependent factors of |\int psi_E* psi_vi R^-1 Sab ⟨kf-|ki+⟩ dR|^2
+        """
         a_AB = self.a_A**2 + self.a_B**2
         if self.gaussian_type == 's': 
             integrand = lambda r: (
@@ -583,6 +575,75 @@ class InterICEC:
                 result += mpmath.quad(integrand, [intervals[i], intervals[i+1]])
 
         return (np.abs(norm*result))**2
+    
+    def overlap_xs_continuum(self, vi, E, electronE, lower_bound=None, norm=None):
+        """ Calculate cross section (a.u.) of the overlap contribution.
+        - electronE : kinetic energy of incoming electron (Hartree, a.u.)
+        """   
+        if lower_bound is None:
+            lower_bound = self.Morse_f.get_lower_bound(E)
+        if norm is None:
+            norm = self.Morse_f.norm_diss(E)
+
+        deltaE = E - self.Morse_i.E(vi)
+        electronE_f = electronE + self.IP_A - self.IP_B - deltaE
+        if electronE_f <= 0 :
+            return 0
+        else:
+            if self.gaussian_type == 's':
+                prefactor = 4*np.pi * 8*(self.a_A*self.a_B/(self.a_A**2 + self.a_B**2))**3
+            elif self.gaussian_type == 'pz':
+                prefactor = 4*np.pi * 16*self.a_A**3*(self.a_B/(self.a_A**2 + self.a_B**2))**5
+            else:
+                print('Invalid gaussian type')
+                return None
+            C = self.C * np.exp(-np.abs(electronE - electronE_f)/self.d)
+            sum_l = sum(
+                (2*l+1) * self.overlap_continuum_FC(l, electronE, electronE_f, vi, E, lower_bound, norm)
+                for l in range(self.lmax + 1)
+            )
+            xs = prefactor / electronE**(3/2) / np.sqrt(electronE_f) * sum_l * C
+            return xs
+        
+    def overlap_xs_vi_to_continuum(self, vi, E):
+        """ Calculate cross section [Mb] for one vibrational transition over range of energies.
+        """
+        lower_bound = self.Morse_f.get_lower_bound(E)
+        norm = self.Morse_f.norm_diss(E, lower_bound)
+        xs_array = np.array([
+            self.overlap_xs_continuum(vi, E, energy, lower_bound, norm)
+            for energy in self.energyGrid
+        ])
+        return xs_array * AU2MB
+    
+    def overlap_xs_vi_to_all_continuum(self, vi, energies):
+        """ Calculate cross section [Mb] for given initial vibrational state vi.
+        Sum over continuum states. Energies of the states are given as input (e.g. solutions in a box from Mathematica)
+        THIS WORKS ONLY IN JUPYTER ON UNIX BASED SYSTEMS
+        """  
+        with Pool() as pool:
+            result = pool.starmap(
+                self.overlap_xs_vi_to_continuum, zip(repeat(vi), energies)
+            )
+        xs_array = sum(list(result))
+        return xs_array
+    
+    def function_for_overlap_spectrum(self, vi, electronE, E):
+        deltaE = E - self.Morse_i.E(vi)
+        electronE_f = electronE + self.IP_A - self.IP_B - deltaE
+        if electronE_f <= 0:
+            return [electronE_f*HARTREE2EV, 0, E*HARTREE2EV]
+        else:
+            xs = self.overlap_xs_continuum(vi, E, electronE)
+            return electronE_f*HARTREE2EV, xs*AU2MB, E*HARTREE2EV
+        
+    def spectrum_continuum(self, electronE, vi, energies):
+        electronE *= EV2HARTREE
+        with Pool() as pool:
+            result = pool.starmap(
+                self.function_for_overlap_spectrum, zip(repeat(vi), repeat(electronE), energies)
+            )
+        return np.array(result)
 
     # ===== PLOTTING FUNCTIONS =====
 
