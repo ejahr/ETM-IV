@@ -567,7 +567,7 @@ class InterICEC:
             xs = self.overlap_xs_continuum(vi, E, electronE)
             return electronE_f*HARTREE2EV, xs*AU2MB, E*HARTREE2EV
         
-    def spectrum_continuum(self, electronE, vi, energies):
+    def spectrum_overlap_continuum(self, electronE, vi, energies):
         electronE *= EV2HARTREE
         with Pool() as pool:
             result = pool.starmap(
