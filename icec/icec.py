@@ -62,7 +62,7 @@ class ICEC:
         self.thresholdEnergy = max(0, self.IP_B - self.IP_A)
         self.prefactor = (3 * c**2) / (8 * np.pi)
 
-    def make_energy_grid(self, minEnergy=None, maxEnergy=10, resolution=100): 
+    def make_energy_grid(self, minEnergy=None, maxEnergy=10, resolution=100, geometric=True): 
         """ Make a suitable grid of incoming electron energies.
         - Energy (eV)
         - resolution : number of grid points
@@ -71,9 +71,11 @@ class ICEC:
         if minEnergy is None:
             minEnergy = self.thresholdEnergy
         else:
-            minEnergy = minEnergy * EV2HARTREE
-        self.energyGrid = np.arange(minEnergy, maxEnergy, 
-                                    (maxEnergy - minEnergy) / resolution, dtype=float)
+            minEnergy = minEnergy * EV2HARTREE        
+        if geometric:
+            self.energyGrid = np.geomspace(minEnergy, maxEnergy, resolution)
+        else:
+            self.energyGrid = np.arange(minEnergy, maxEnergy, (maxEnergy-minEnergy)/resolution, dtype=float)
 
     def make_R_grid(self, Rmin, Rmax, resolution=100): 
         """ Make a suitable grid of interatomic distances.
@@ -122,11 +124,12 @@ class ICEC:
         return xs * AU2MB
     
     # ----- OVERLAP -----
-    def define_overlap_parameters(self, a_A, a_B, C, d):
+    def define_overlap_parameters(self, a_A, a_B, C, d, lmax=10):
         self.a_A = a_A
         self.a_B = a_B
         self.C = C
         self.d = d
+        self.lmax = lmax
 
     def Sab(self, R, gaussian_type='s'):
         """ Square of the overlap integral of two Gaussians
@@ -141,7 +144,7 @@ class ICEC:
             return 0
         return factor* np.exp(-R**2/a_AB)
 
-    def calculate_overlap_xs(self, electronE, R, lmax, gaussian_type='s'):
+    def overlap_xs(self, electronE, R, lmax, gaussian_type='s'):
         """ Calculate cross section (a.u.) of the overlap contribution.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         - R: internuclear distance: (Bohr, a.u.)
@@ -168,7 +171,7 @@ class ICEC:
         - lmax: upper bound for sum over l -> convergence
         """    
         overlap_xs = np.array([
-            self.calculate_overlap_xs(energy, R, lmax)
+            self.overlap_xs(energy, R, lmax)
             for energy in self.energyGrid
         ])
         return overlap_xs * AU2MB
@@ -181,7 +184,7 @@ class ICEC:
         electronE = electronE * EV2HARTREE
         self.make_R_grid(Rmin, Rmax)
         overlap_xs = np.array([
-            self.calculate_overlap_xs(electronE, R, lmax, gaussian_type)
+            self.overlap_xs(electronE, R, lmax, gaussian_type)
             for R in self.rGrid
         ])
         return overlap_xs * AU2MB
