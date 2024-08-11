@@ -276,6 +276,8 @@ class InterICEC:
         """ |<psi(E)|r^-3|psi_vi>|^2
         norm: normalization constant for the vibrational continuum state
         divide integration into intervals to deal with the highly oscillating integrand
+        use oscillating behaviour from particle-in-a-box states
+        TODO implement accuracy factor, i.e. what to divide by instead of hardcoded 10
         """
         if lower_bound is None:
             lower_bound = self.Morse_f.get_lower_bound(E)
@@ -283,7 +285,7 @@ class InterICEC:
             norm = self.Morse_f.norm_diss(E)
 
         integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
-        num_intervals = int(self.Morse_f.box_length/np.pi * np.sqrt(2*self.Morse_f.mu*E) / 10) # approximate oscillating behaviour from particle in a box 
+        num_intervals = int(self.Morse_f.box_length/np.pi * np.sqrt(2*self.Morse_f.mu*E) / 10) # divide by lower number to increase accuracy
         if num_intervals < 2:
             result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
         else:
