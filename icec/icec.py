@@ -124,27 +124,28 @@ class ICEC:
         return xs * AU2MB
     
     # ----- OVERLAP -----
-    def define_overlap_parameters(self, a_A, a_B, C, d, lmax=10):
+    def define_overlap_parameters(self, a_A, a_B, C, d, lmax=10, gaussian_type='s'):
         self.a_A = a_A
         self.a_B = a_B
         self.C = C
         self.d = d
         self.lmax = lmax
+        self.gaussian_type = gaussian_type
 
-    def Sab(self, R, gaussian_type='s'):
+    def Sab(self, R):
         """ Square of the overlap integral of two Gaussians
         """
         a_AB = self.a_A**2 + self.a_B**2
-        if gaussian_type == 'pz':
+        if self.gaussian_type == 'pz':
             factor = 16 * self.a_A**3 * (self.a_B / a_AB)**5 * R**2
-        elif gaussian_type == 's':
+        elif self.gaussian_type == 's':
             factor = (2 * self.a_A * self.a_B / a_AB)**3
         else:
             print('Invalid gaussian type')
             return 0
         return factor* np.exp(-R**2/a_AB)
 
-    def overlap_xs(self, electronE, R, lmax, gaussian_type='s'):
+    def overlap_xs(self, electronE, R, lmax):
         """ Calculate cross section (a.u.) of the overlap contribution.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         - R: internuclear distance: (Bohr, a.u.)
@@ -163,7 +164,7 @@ class ICEC:
                 sum_l += (2*l+1) * J_l
             sum_l *= C
             # cross section
-            return 4*np.pi / electronE**(3/2) / np.sqrt(electronE_f) / R**2 * self.Sab(R, gaussian_type) * sum_l
+            return 4*np.pi / electronE**(3/2) / np.sqrt(electronE_f) / R**2 * self.Sab(R) * sum_l
 
     def calculate_overlap_xs_energy(self, R, lmax):
         """ Calculate cross section (Mb) of the overlap contribution for given range of kinetic energies.
@@ -176,7 +177,7 @@ class ICEC:
         ])
         return overlap_xs * AU2MB
     
-    def calculate_overlap_xs_R(self, electronE, lmax, Rmin, Rmax, gaussian_type='s'):
+    def calculate_overlap_xs_R(self, electronE, lmax, Rmin, Rmax):
         """ Calculate cross section (Mb) of the overlap contribution for given range of interatomic distances.
         - electronE : energy of incoming electron (eV) 
         - R : interatomic distance (Bohr, a.u.)
@@ -184,7 +185,7 @@ class ICEC:
         electronE = electronE * EV2HARTREE
         self.make_R_grid(Rmin, Rmax)
         overlap_xs = np.array([
-            self.overlap_xs(electronE, R, lmax, gaussian_type)
+            self.overlap_xs(electronE, R, lmax)
             for R in self.rGrid
         ])
         return overlap_xs * AU2MB
