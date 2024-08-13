@@ -145,11 +145,10 @@ class ICEC:
             return 0
         return factor* np.exp(-R**2/a_AB)
 
-    def overlap_xs(self, electronE, R, lmax):
-        """ Calculate cross section (a.u.) of the overlap contribution.
+    def overlap_xs(self, electronE, R):
+        """ Calculates cross section (a.u.) of the overlap contribution.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         - R: internuclear distance: (Bohr, a.u.)
-        - lmax: upper bound for sum over l -> pick large enough for convergence
         """ 
         electronE_f = electronE + self.IP_A - self.IP_B
         if electronE_f <= 0 :
@@ -185,35 +184,34 @@ class ICEC:
         if not hasattr(self, 'rGrid'):
             self.make_R_grid()
         overlap_xs = np.array([
-            self.overlap_xs(electronE, R, lmax)
+            self.overlap_xs(electronE, R)
             for R in self.rGrid
         ])
         return overlap_xs * AU2MB
-    
     # ----- OVERLAP END -----
 
     def plot_xs(self, ax, xs, label="ICEC", **kwargs):
-        '''Plot the Cross section xs [Mb]'''
+        '''Plots the Cross section xs [Mb]'''
         ax.plot(self.energyGrid*HARTREE2EV, xs, label=label, **kwargs)
         ax.set_xlabel(r'$E_\text{el}$ [eV]')
         ax.set_ylabel(r'$\sigma$ [Mb]')
         ax.set_yscale('log')
         ax.set_title('ICEC cross section')
 
-    def plot_xs_R(self, ax, xs, label="ICEC", **kwargs):
-        '''Plot the Cross section xs [Mb]'''
-        ax.plot(self.rGrid, xs, label=label, **kwargs)
+    def plot_xs_R(self, ax, xs, **kwargs):
+        '''Plots the Cross section xs [Mb]'''
+        ax.plot(self.rGrid, xs, **kwargs)
         ax.set_xlabel(r'$R$ [a.u.]')
         ax.set_ylabel(r'$\sigma$ [Mb]')
         ax.set_yscale('log')
         ax.set_title('ICEC cross section')
 
-    def plot_PR_xs(self, ax, label="PR", linestyle='dashed', **kwargs):
-        '''Plot the Photorecombination Cross section [Mb]'''
+    def plot_PR_xs(self, ax, **kwargs):
+        '''Plots the Photorecombination Cross section [Mb]'''
         PR_xs = np.array([])
         for electronE in self.energyGrid:
             hbarOmega = electronE + self.IP_A
             PI_xs = self.PI_xs_A(hbarOmega*HARTREE2EV)*MB2AU
             xs = self.degeneracyFactor * hbarOmega**2 / (2*electronE*c**2) * PI_xs
             PR_xs = np.append(PR_xs, [xs * AU2MB])
-        ax.plot(self.energyGrid*HARTREE2EV, PR_xs, label=label, linestyle=linestyle, **kwargs)
+        ax.plot(self.energyGrid*HARTREE2EV, PR_xs, **kwargs)
