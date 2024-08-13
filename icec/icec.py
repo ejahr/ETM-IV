@@ -77,7 +77,7 @@ class ICEC:
         else:
             self.energyGrid = np.arange(minEnergy, maxEnergy, (maxEnergy-minEnergy)/resolution, dtype=float)
 
-    def make_R_grid(self, Rmin, Rmax, resolution=100): 
+    def make_R_grid(self, Rmin=2, Rmax=10, resolution=100): 
         """ Make a suitable grid of interatomic distances.
         - R (Bohr, a.u.)
         - resolution : number of grid points
@@ -110,13 +110,13 @@ class ICEC:
         ]) 
         return xs * AU2MB
 
-    def calculate_xs_R(self, electronE, Rmin, Rmax):
+    def xs_R(self, electronE):
         """ Calculate cross section (Mb) of ICEC for given range of interatomic distances.
         - electronE : energy of incoming electron (eV) 
-        - R : interatomic distance (Bohr, a.u.)
         """
         electronE = electronE * EV2HARTREE
-        self.make_R_grid(Rmin, Rmax)
+        if not hasattr(self, 'rGrid'):
+            self.make_R_grid()
         xs = np.array([
             self.calculate_xs(electronE, R)
             for R in self.rGrid
@@ -182,7 +182,8 @@ class ICEC:
         - R : interatomic distance (Bohr, a.u.)
         """
         electronE = electronE * EV2HARTREE
-        self.make_R_grid(Rmin, Rmax)
+        if not hasattr(self, 'rGrid'):
+            self.make_R_grid()
         overlap_xs = np.array([
             self.overlap_xs(electronE, R, lmax)
             for R in self.rGrid
