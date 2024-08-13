@@ -125,6 +125,9 @@ class ICEC:
     
     # ----- OVERLAP -----
     def define_overlap_parameters(self, a_A, a_B, C, d, lmax=10, gaussian_type='s'):
+        ''' Defines the overlap parameters, including fitting parameters
+        - lmax: upper bound for sum over l -> set large enough for convergence
+        '''
         self.a_A = a_A
         self.a_B = a_B
         self.C = C
