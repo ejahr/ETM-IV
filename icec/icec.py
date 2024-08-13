@@ -75,14 +75,14 @@ class ICEC:
         if geometric:
             self.energyGrid = np.geomspace(minEnergy, maxEnergy, resolution)
         else:
-            self.energyGrid = np.arange(minEnergy, maxEnergy, (maxEnergy-minEnergy)/resolution, dtype=float)
+            self.energyGrid = np.linspace(minEnergy, maxEnergy, resolution)
 
     def make_R_grid(self, Rmin=2, Rmax=10, resolution=100): 
         """ Make a suitable grid of interatomic distances.
         - R (Bohr, a.u.)
         - resolution : number of grid points
         """
-        self.rGrid = np.arange(Rmin, Rmax, (Rmax - Rmin) / resolution, dtype=float)
+        self.rGrid = np.linspace(Rmin, Rmax, resolution)
 
     # ----- CROSS SECTION -----    
     def calculate_xs(self, electronE, R):
