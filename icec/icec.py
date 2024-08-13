@@ -158,7 +158,7 @@ class ICEC:
             # overlap of the continuum electrons
             C = self.C * np.exp(-abs(self.IP_A-self.IP_B)/self.d)
             sum_l = 0
-            for l in range(0,lmax+1):
+            for l in range(0,self.lmax+1):
                 K_av = electronE*(self.a_A+R)**2 + electronE_f*(self.a_B+R)**2
                 J_l = np.exp(-l*(l+1)/K_av)
                 sum_l += (2*l+1) * J_l
@@ -166,19 +166,18 @@ class ICEC:
             # cross section
             return 4*np.pi / electronE**(3/2) / np.sqrt(electronE_f) / R**2 * self.Sab(R) * sum_l
 
-    def calculate_overlap_xs_energy(self, R, lmax):
-        """ Calculate cross section (Mb) of the overlap contribution for given range of kinetic energies.
+    def overlap_xs_energy(self, R):
+        """ Calculates cross section (Mb) of the overlap contribution for given range of kinetic energies.
         - R: internuclear distance: (Bohr, a.u.)
-        - lmax: upper bound for sum over l -> convergence
         """    
         overlap_xs = np.array([
-            self.overlap_xs(energy, R, lmax)
+            self.overlap_xs(energy, R)
             for energy in self.energyGrid
         ])
         return overlap_xs * AU2MB
     
-    def calculate_overlap_xs_R(self, electronE, lmax, Rmin, Rmax):
-        """ Calculate cross section (Mb) of the overlap contribution for given range of interatomic distances.
+    def overlap_xs_R(self, electronE):
+        """ Calculates cross section (Mb) of the overlap contribution for given range of interatomic distances.
         - electronE : energy of incoming electron (eV) 
         - R : interatomic distance (Bohr, a.u.)
         """
