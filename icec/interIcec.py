@@ -71,9 +71,8 @@ class Morse:
         - r : interatomic distance (Bohr, a.u.)
         """
         z = self.z0 * mpmath.exp(-self.alpha * r)
-        # Normalization constant
-        Nn = np.sqrt( (2*self.lam-2*v-1) * sp.special.factorial(v) * self.alpha / sp.special.gamma(2*self.lam - v) )
-        return Nn * z**(self.lam-v-0.5) * mpmath.exp(-z/2) * mpmath.laguerre(v, 2*self.lam-2*v-1, z)
+        N = mpmath.sqrt( (2*self.lam-2*v-1) * mpmath.factorial(v) * self.alpha / mpmath.gamma(2*self.lam - v) )
+        return N * z**(self.lam-v-0.5) * mpmath.exp(-z/2) * mpmath.laguerre(v, 2*self.lam-2*v-1, z)
 
     def E(self, v):
         """ Energy of the v-th (bound) eigenstate of the Morse potential. E_bound < 0 
@@ -104,7 +103,7 @@ class Morse:
         '''
         if lower_bound is None:
             lower_bound = self.get_lower_bound(E)
-        integrand = lambda r: np.conjugate(self.psi_diss(E,r))*self.psi_diss(E,r)
+        integrand = lambda r: mpmath.conj(self.psi_diss(E,r))*self.psi_diss(E,r)
         num_intervals = int(self.box_length/np.pi * np.sqrt(2*self.mu*E) / 10) # approximate oscillating behaviour by particle in a box 
         if num_intervals < 2:
             norm = mpmath.quad(integrand, [lower_bound, self.box_length])
@@ -120,14 +119,14 @@ class Morse:
         source: https://doi.org/10.1088/0953-4075/21/16/011
         mpmath.hyp1f1: https://mpmath.org/doc/current/functions/hypergeometric.html#hyp1f1
         """
-        k = np.sqrt(2*self.mu*E)
+        k = mpmath.sqrt(2*self.mu*E)
         epsilon = k/self.alpha
         s = self.lam - 0.5
         z = self.z0 * mpmath.exp(-self.alpha * r) # needs to be mpmath for mpmath.quad to work
 
         A = mpmath.gamma(-2j*epsilon)/mpmath.gamma(-s-1j*epsilon)
         psi_in = A * z**(1j*epsilon) * mpmath.hyp1f1(-s+1j*epsilon, 2j*epsilon+1, z)
-        psi_out = np.conjugate(A) * z**(-1j*epsilon) * mpmath.hyp1f1(-s-1j*epsilon, -2j*epsilon+1, z)
+        psi_out = mpmath.conj(A) * z**(-1j*epsilon) * mpmath.hyp1f1(-s-1j*epsilon, -2j*epsilon+1, z)
 
         return mpmath.exp(-z/2) * (psi_in + psi_out) 
 
@@ -284,7 +283,7 @@ class InterICEC:
         if norm is None:
             norm = self.Morse_f.norm_diss(E)
 
-        integrand =  lambda r: np.conjugate(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
+        integrand =  lambda r: mpmath.conj(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
         num_intervals = int(self.Morse_f.box_length/np.pi * np.sqrt(2*self.Morse_f.mu*E) / 10) # divide by lower number to increase accuracy
         if num_intervals < 2:
             result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
@@ -294,7 +293,7 @@ class InterICEC:
             for i in range(num_intervals):
                 result += mpmath.quad(integrand, [intervals[i], intervals[i+1]])
 
-        return (np.abs(norm*result))**2  
+        return (mpmath.fabs(norm*result))**2  
 
     def xs_continuum(self, vi, E, electronE, modifiedFC=None, norm=None):
         """ Calculate cross section [a.u.] for one bound-continuum vibrational transition.
@@ -478,7 +477,7 @@ class InterICEC:
             for i in range(num_intervals):
                 result += mpmath.quad(integrand, [intervals[i], intervals[i+1]])
 
-        return (np.abs(norm*result))**2
+        return (mpmath.fabs(norm*result))**2
     
     def overlap_xs_continuum(self, vi, E, electronE, lower_bound=None, norm=None):
         """ Calculate cross section (a.u.) of the overlap contribution.
@@ -501,13 +500,13 @@ class InterICEC:
             else:
                 print('Invalid gaussian type')
                 return None
-            C = self.C * np.exp(-np.abs(electronE - electronE_f)/self.d)
+            C = self.C * mpmath.exp(-mpmath.fabs(electronE - electronE_f)/self.d)
             sum_l = sum(
                 (2*l+1) * self.overlap_FC_continuum(l, electronE, electronE_f, vi, E, lower_bound, norm)
                 for l in range(self.lmax + 1)
             )
-            xs = prefactor / electronE**(3/2) / np.sqrt(electronE_f) * sum_l * C
-            return xs
+            xs = prefactor / electronE**(3/2) / mpmath.sqrt(electronE_f) * sum_l * C
+            return np.abs(xs)
         
     def overlap_xs_vi_to_continuum(self, vi, E):
         """ Calculate cross section [Mb] for one vibrational transition over range of energies.
