@@ -98,13 +98,18 @@ class Morse:
         min_index = np.argmin(psi_samples)
         return R_samples[min_index]
     
+    def estimate_oscillation(self, E, d=10):
+        # particle in a box: E_n = n^2*pi^2/(2*m*L^2)
+        n =  self.box_length/np.pi * np.sqrt(2*self.mu*E) 
+        return int(n / d) # divide by d to not have just one period per interval
+    
     def norm_diss(self, E, lower_bound=None):
         ''' Integration over possibly highly-oscillating function
         '''
         if lower_bound is None:
             lower_bound = self.get_lower_bound(E)
         integrand = lambda r: mpmath.conj(self.psi_diss(E,r))*self.psi_diss(E,r)
-        num_intervals = int(self.box_length/np.pi * np.sqrt(2*self.mu*E) / 10) # approximate oscillating behaviour by particle in a box 
+        num_intervals = self.estimate_oscillation(E)
         if num_intervals < 2:
             norm = mpmath.quad(integrand, [lower_bound, self.box_length])
         else:
@@ -284,7 +289,7 @@ class InterICEC:
             norm = self.Morse_f.norm_diss(E)
 
         integrand =  lambda r: mpmath.conj(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
-        num_intervals = int(self.Morse_f.box_length/np.pi * np.sqrt(2*self.Morse_f.mu*E) / 10) # divide by lower number to increase accuracy
+        num_intervals = self.Morse_f.estimate_oscillation(E)
         if num_intervals < 2:
             result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
         else:
@@ -468,7 +473,7 @@ class InterICEC:
                 * mpmath.exp(-0.5*r**2/a_AB - 0.5*l*(l+1)/(electronE*(self.a_A+r)**2 + electronE_f*(self.a_B+r)**2))
             )
         
-        num_intervals = int(self.Morse_f.box_length/np.pi * np.sqrt(2*self.Morse_f.mu*E) / 10) # approximate oscillating behaviour by particle in a box 
+        num_intervals = self.Morse_f.estimate_oscillation(E)
         if num_intervals < 2:
             result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
         else:
