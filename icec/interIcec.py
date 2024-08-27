@@ -87,7 +87,7 @@ class Morse:
     def define_box(self, box_length = 10*ANGSTROM2BOHR):
         self.box_length = box_length
 
-    def get_lower_bound(self, E, precision=100):
+    def get_lower_bound(self, E, precision=200):
         ''' Get lower bound for neglecting the diverging r->0 behaviour.
         '''
         R = self.intersection_V(E)
@@ -113,7 +113,7 @@ class Morse:
         if num_intervals < 2:
             norm = mpmath.quad(integrand, [lower_bound, self.box_length])
         else:
-            intervals = np.linspace(lower_bound, self.box_length, num_intervals + 1)
+            intervals = np.linspace(lower_bound, self.box_length, num_intervals+1)
             norm = 0
             for i in range(num_intervals):
                 norm += mpmath.quad(integrand, [intervals[i], intervals[i+1]])
@@ -319,7 +319,7 @@ class InterICEC:
             xs = self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B * modifiedFC / (electronE * omegaA * omegaB)
             return np.abs(xs)
     
-    def xs_to_all_continuum(self, vi, electronE, energies):
+    def xs_to_all_continuum(self, vi, energies, electronE):
         omegaA = electronE + self.IP_A
         max_energy = omegaA - self.IP_B + self.Morse_i.E(vi)
         xs = sum(
@@ -367,7 +367,7 @@ class InterICEC:
             xs = self.xs_continuum(vi, E, electronE)
             return electronE_f*HARTREE2EV, xs*AU2MB, E*HARTREE2EV
         
-    def spectrum_continuum(self, electronE, energies, vi=0):
+    def spectrum_continuum(self, electronE, vi, energies):
         electronE *= EV2HARTREE
         with Pool() as pool:
             result = pool.starmap(
@@ -385,7 +385,6 @@ class InterICEC:
         self.gaussian_type = gaussian_type      # gaussian orbital type for Sab
 
     # ===== OVERLAP : BOUND - BOUND TRANSITION =====
-
     def overlap_FC(self, l, electronE, electronE_f, vi, vf):
         """ Calculate <psi_vi|r^-3 exp()|psi_vf>
         - vi, vf: initial and final vibrational quantum number
@@ -457,7 +456,6 @@ class InterICEC:
         return np.array(spectrum)
     
     # ===== OVERLAP : BOUND - CONTINUUM TRANSITION =====    
-
     def overlap_FC_continuum(self, l, electronE, electronE_f, vi, E, lower_bound, norm):
         """ Calculate integral over R-dependent factors of |\int psi_E* psi_vi R^-1 Sab ⟨kf-|ki+⟩ dR|^2
         """
@@ -511,6 +509,7 @@ class InterICEC:
                 for l in range(self.lmax + 1)
             )
             xs = prefactor / electronE**(3/2) / mpmath.sqrt(electronE_f) * sum_l * C
+            #xs = prefactor / electronE**(3/2) * sum_l * C # TEST
             return np.abs(xs)
         
     def overlap_xs_vi_to_continuum(self, vi, E):
