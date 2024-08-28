@@ -94,10 +94,10 @@ class Morse:
         psi_samples = np.array([    # psi_diss() does not work with np.array directly due to mpmath
             np.abs(self.psi_diss(E,r)) for r in R_samples
         ])
-        min_index = np.argmin(psi_samples)
+        min_index = np.nanargmin(psi_samples)
         return R_samples[min_index]
     
-    def estimate_oscillation(self, E, d=10):
+    def estimate_oscillation(self, E, d=5):
         # particle in a box: E_n = n^2*pi^2/(2*m*L^2)
         n = self.box_length/np.pi * np.sqrt(2*self.mu*E) 
         return int(n / d) # divide by d to not have just one period per interval
@@ -109,7 +109,7 @@ class Morse:
             lower_bound = self.get_lower_bound(E)
         integrand = lambda r: mpmath.conj(self.psi_diss(E,r))*self.psi_diss(E,r)
         num_intervals = self.estimate_oscillation(E)
-        if num_intervals < 2:
+        if num_intervals < 4:
             norm = mpmath.quad(integrand, [lower_bound, self.box_length])
         else:
             intervals = np.linspace(lower_bound, self.box_length, num_intervals+1)
@@ -288,7 +288,7 @@ class InterICEC:
 
         integrand =  lambda r: mpmath.conj(self.Morse_f.psi_diss(E,r)) * self.Morse_i.psi(vi,r) / r**3
         num_intervals = self.Morse_f.estimate_oscillation(E)
-        if num_intervals < 2:
+        if num_intervals < 4:
             result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
         else:
             intervals = np.linspace(lower_bound, self.Morse_f.box_length, num_intervals + 1)
@@ -470,7 +470,7 @@ class InterICEC:
             )
         
         num_intervals = self.Morse_f.estimate_oscillation(E)
-        if num_intervals < 2:
+        if num_intervals < 4:
             result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
         else:
             intervals = np.linspace(lower_bound, self.Morse_f.box_length, num_intervals + 1)
