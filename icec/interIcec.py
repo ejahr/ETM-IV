@@ -99,7 +99,7 @@ class Morse:
     
     def estimate_oscillation(self, E, d=10):
         # particle in a box: E_n = n^2*pi^2/(2*m*L^2)
-        n =  self.box_length/np.pi * np.sqrt(2*self.mu*E) 
+        n = self.box_length/np.pi * np.sqrt(2*self.mu*E) 
         return int(n / d) # divide by d to not have just one period per interval
     
     def norm_diss(self, E, lower_bound=None):
@@ -279,8 +279,7 @@ class InterICEC:
         """ |<psi(E)|r^-3|psi_vi>|^2
         norm: normalization constant for the vibrational continuum state
         divide integration into intervals to deal with the highly oscillating integrand
-        use oscillating behaviour from particle-in-a-box states
-        TODO implement accuracy factor, i.e. what to divide by instead of hardcoded 10
+              TODO implement accuracy factor, i.e. what to divide by instead of hardcoded 10
         """
         if lower_bound is None:
             lower_bound = self.Morse_f.get_lower_bound(E)
@@ -360,8 +359,8 @@ class InterICEC:
     def function_for_spectrum(self, electronE, vi, E):
         deltaE = E - self.Morse_i.E(vi)
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
-        if electronE_f < 0:
-            return [electronE_f*HARTREE2EV, 0, E*HARTREE2EV]
+        if electronE_f <= 0:
+            return electronE_f*HARTREE2EV, 0, E*HARTREE2EV
         else:
             xs = self.xs_continuum(vi, E, electronE)
             return electronE_f*HARTREE2EV, xs*AU2MB, E*HARTREE2EV
@@ -370,7 +369,7 @@ class InterICEC:
         electronE *= EV2HARTREE
         with Pool() as pool:
             result = pool.starmap(
-                self.function_for_spectrum, repeat(electronE), zip(repeat(vi), energies)
+                self.function_for_spectrum, zip(repeat(electronE), repeat(vi), energies)
             )
         return np.array(result)
 
