@@ -358,7 +358,7 @@ class InterICEC:
         print("Maximum vibrational E for highest initial kin.E:", maxE, 'eV' )
         return xs_vi
     
-    def function_for_spectrum(self, vi, electronE, E):
+    def function_for_spectrum(self, electronE, vi, E):
         deltaE = E - self.Morse_i.E(vi)
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
         if electronE_f < 0:
@@ -371,12 +371,12 @@ class InterICEC:
         electronE *= EV2HARTREE
         with Pool() as pool:
             result = pool.starmap(
-                self.function_for_spectrum, zip(repeat(vi), repeat(electronE), energies)
+                self.function_for_spectrum, repeat(electronE), zip(repeat(vi), energies)
             )
         return np.array(result)
 
     # ===== OVERLAP CONTRIBUTION =====
-    def define_overlap_parameters(self, a_A, a_B, C, d, lmax = 10, gaussian_type = 's'):
+    def define_overlap_parameters(self, a_A, a_B, C, d, lmax=10, gaussian_type='s'):
         self.a_A = a_A
         self.a_B = a_B
         self.C = C
