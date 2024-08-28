@@ -242,7 +242,7 @@ class InterICEC:
         ])
         return xs_array * AU2MB
 
-    def calculate_xs_vi(self, vi):
+    def xs_vi(self, vi):
         """ Calculate cross section [Mb] for given initial vibrational state vi over range of kinetic energies.
         Sum over final vibrational states.
         """   
@@ -253,17 +253,17 @@ class InterICEC:
         xs_array = sum(list(result))
         return xs_array
     
-    def calculate_xs_tot(self):
+    def xs_tot(self):
         """ Calculate cross section [Mb] for range of kinetic energies.
         Sum over final and average over initial vibrational states (should be a Boltzmann average though).
         """   
         xs_array = sum(
-            self.calculate_xs_vi(vi)
+            self.xs_vi(vi)
             for vi in range(self.Morse_i.vmax + 1)
         )
         return xs_array/self.Morse_i.vmax 
     
-    def calculate_spectrum(self, electronE, vi=0):
+    def spectrum_bound(self, electronE, vi=0):
         electronE *= EV2HARTREE
         spectrum = []
         for vf in range(self.Morse_f.vmax + 1):
@@ -433,7 +433,7 @@ class InterICEC:
         ])
         return xs_array * AU2MB
 
-    def overlap_xs_vi(self, vi=0):
+    def overlap_xs_vi(self, vi):
         """ Calculate cross section [Mb] for given initial vibrational state vi. Sum over final vibrational states.
         THIS WORKS ONLY IN JUPYTER ON UNIX BASED SYSTEMS
         """  
