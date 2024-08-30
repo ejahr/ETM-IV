@@ -74,7 +74,7 @@ class Morse:
         return N * z**(self.lam-v-0.5) * mpmath.exp(-z/2) * mpmath.laguerre(v, 2*self.lam-2*v-1, z)
 
     def E(self, v):
-        """ Energy of the v-th (bound) eigenstate of the Morse potential. E_bound < 0 
+        """ Energy [Hartree] of the v-th (bound) eigenstate of the Morse potential. E_bound < 0 
         """
         vphalf = v + 0.5
         return self.we * vphalf - (self.we*vphalf)**2 / (4*self.De) - self.De
@@ -141,7 +141,7 @@ class Morse:
             rmin = self.rmin
         if rmax is None:
             rmax = self.rmax
-        self.r = np.linspace(self.rmin, self.rmax, resolution)
+        self.r = np.linspace(rmin, rmax, resolution)
         return self.r
     
     def plot_V(self, ax, **kwargs):
