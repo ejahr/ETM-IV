@@ -85,7 +85,7 @@ class ICEC:
         self.rGrid = np.linspace(Rmin, Rmax, resolution)
 
     # ----- CROSS SECTION -----    
-    def calculate_xs(self, electronE, R):
+    def xs(self, electronE, R):
         """ Calculate cross section (a.u.) of ICEC for some kinetic energy and R.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         - R: internuclear distance: (Bohr, a.u.)
@@ -98,14 +98,14 @@ class ICEC:
             PI_xs_B = self.PI_xs_B(hbarOmega*HARTREE2EV)*MB2AU
             return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B / (electronE * hbarOmega**2 * R**6)
 
-    def calculate_xs_energy(self, R):
+    def xs_energy(self, R):
         """ Calculate cross section (Mb) of ICEC for given range of kinetic energies.
         - R: internuclear distance: (Bohr, a.u.)
         """        
         if not hasattr(self, 'energyGrid'):
             self.make_energy_grid()
         xs = np.array([
-            self.calculate_xs(energy, R)
+            self.xs(energy, R)
             for energy in self.energyGrid
         ]) 
         return xs * AU2MB
@@ -118,7 +118,7 @@ class ICEC:
         if not hasattr(self, 'rGrid'):
             self.make_R_grid()
         xs = np.array([
-            self.calculate_xs(electronE, R)
+            self.xs(electronE, R)
             for R in self.rGrid
         ])
         return xs * AU2MB
