@@ -297,6 +297,23 @@ class InterICEC:
                 result += mpmath.quad(integrand, [intervals[i], intervals[i+1]])
 
         return (mpmath.fabs(norm*result))**2  
+    
+    def function_for_FC(self, electronE, vi, E):
+        deltaE = E - self.Morse_i.E(vi)
+        electronE_f = electronE + self.IP_A - self.IP_B - deltaE
+        if electronE_f <= 0:
+            return electronE_f*HARTREE2EV, 0, E*HARTREE2EV
+        else:
+            modifiedFC = self.modified_FC_continuum(vi, E)
+            return modifiedFC # a.u.
+        
+    def spectrum_continuum_FC(self, electronE, vi, energies):
+        electronE *= EV2HARTREE
+        with Pool() as pool:
+            result = pool.starmap(
+                self.function_for_FC, zip(repeat(electronE), repeat(vi), energies)
+            )
+        return np.array(result)
 
     def xs_continuum(self, vi, E, electronE, modifiedFC=None, norm=None):
         """ Calculate cross section [a.u.] for one bound-continuum vibrational transition.
