@@ -368,9 +368,8 @@ class InterICEC:
                 self.xs_vi_to_continuum, zip(repeat(vi), energies)
             )
         xs_vi = sum(list(result))
-
-        maxE = (self.energyGrid[-1] + self.IP_A - self.IP_B + self.Morse_i.E(vi))*HARTREE2EV
-        print("Maximum vibrational E for highest initial kin.E:", maxE, 'eV' )
+        #maxE = (self.energyGrid[-1] + self.IP_A - self.IP_B + self.Morse_i.E(vi))*HARTREE2EV
+        #print("Maximum vibrational E for highest initial kin.E:", maxE, 'eV' )
         return xs_vi
     
     def function_for_spectrum(self, electronE, vi, E):
