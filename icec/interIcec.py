@@ -8,7 +8,7 @@ from multiprocessing import Pool
 # Constants in atomic units
 c = 137
 
-# conversion factors for energies
+# energy
 EV2HARTREE = 3.67493e-2
 HARTREE2EV = 27.2114
 WAVENUMBER2HARTREE = 4.55633e-6
@@ -265,7 +265,7 @@ class InterICEC:
             )
 
     def xs_vivf(self, vi, vf):
-        """Calculate cross section [Mb] for one vibrational transition vi -> vf over range of energies."""
+        """Calculate cross section [Mb] for one vibrational transition vi -> vf over range of electron energies."""
         if not hasattr(self, "energyGrid"):
             self.make_energy_grid()
         modifiedFC = (abs(self.modified_FC_factor(vi, vf))) ** 2
@@ -275,7 +275,7 @@ class InterICEC:
         return xs_array * AU2MB
 
     def xs_vi(self, vi):
-        """Calculate cross section [Mb] for given initial vibrational state vi over range of kinetic energies.
+        """Calculate cross section [Mb] for given initial vibrational state vi over range of electron energies.
         Sum over final vibrational states.
         """
         with Pool() as pool:
@@ -286,7 +286,7 @@ class InterICEC:
         return xs_array
 
     def xs_tot(self):
-        """Calculate cross section [Mb] for range of kinetic energies.
+        """Calculate cross section [Mb] for range of electron energies.
         Sum over final and average over initial vibrational states (should be a Boltzmann average though).
         """
         xs_array = sum(self.xs_vi(vi) for vi in range(self.Morse_i.vmax + 1))
@@ -332,20 +332,22 @@ class InterICEC:
 
         return (mpmath.fabs(norm * result)) ** 2
 
-    def function_for_FC(self, electronE, vi, E):
+    def function_for_FC(self, electronE, vi, E, density_of_states_at_E):
         deltaE = E - self.Morse_i.E(vi)
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
         if electronE_f <= 0:
             return electronE_f * HARTREE2EV, 0, E * HARTREE2EV
         else:
-            modifiedFC = self.modified_FC_continuum(vi, E)
+            modifiedFC = self.modified_FC_continuum(vi, E) * density_of_states_at_E
             return electronE_f*HARTREE2EV, modifiedFC, E*HARTREE2EV # a.u.
         
-    def spectrum_continuum_FC(self, electronE, vi, energies):
+    def spectrum_continuum_FC(self, electronE, vi, vib_energies):
         electronE *= EV2HARTREE
+        density_of_states = 1/(vib_energies[1:-1] - vib_energies[0:-2])
+        density_of_states.append(density_of_states[-1])
         with Pool() as pool:
             result = pool.starmap(
-                self.function_for_FC, zip(repeat(electronE), repeat(vi), energies)
+                self.function_for_FC, zip(repeat(electronE), repeat(vi), vib_energies, density_of_states)
             )
         return np.array(result)
 
@@ -376,14 +378,14 @@ class InterICEC:
             )
             return np.abs(xs)
 
-    def xs_to_all_continuum(self, vi, energies, electronE):
+    def xs_to_all_continuum(self, vi, vib_energies, electronE):
         omegaA = electronE + self.IP_A
         max_energy = omegaA - self.IP_B + self.Morse_i.E(vi)
-        xs = sum(self.xs_continuum(vi, E) for E in energies if E <= max_energy)
+        xs = sum(self.xs_continuum(vi, E) for E in vib_energies if E <= max_energy)
         return xs
 
     def xs_vi_to_continuum(self, vi, E):
-        """Calculate cross section [Mb] for one vibrational transition over range of energies."""
+        """Calculate cross section [Mb] for one vibrational transition over range of electron energies."""
         if not hasattr(self, "energyGrid"):
             self.make_energy_grid()
         if not hasattr(self.Morse_f, "box_length"):
@@ -396,31 +398,34 @@ class InterICEC:
         )
         return xs_array * AU2MB
 
-    def xs_vi_to_all_continuum(self, vi, energies):
+    def xs_vi_to_all_continuum(self, vi, vib_energies):
         """Calculate cross section [Mb] for given initial vibrational state vi over range of kinetic energies.
         Sum over continuum states. Energies of the states are given as input (e.g. solutions in a box from Mathematica)
         """
         with Pool() as pool:
-            result = pool.starmap(self.xs_vi_to_continuum, zip(repeat(vi), energies))
+            result = pool.starmap(self.xs_vi_to_continuum, zip(repeat(vi), vib_energies))
         xs_vi = sum(list(result))
         # maxE = (self.energyGrid[-1] + self.IP_A - self.IP_B + self.Morse_i.E(vi))*HARTREE2EV
         # print("Maximum vibrational E for highest initial kin.E:", maxE, 'eV' )
         return xs_vi
 
-    def function_for_spectrum(self, electronE, vi, E):
+    def function_for_spectrum(self, electronE, vi, E, density_of_states_at_E):
         deltaE = E - self.Morse_i.E(vi)
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
         if electronE_f <= 0:
             return electronE_f * HARTREE2EV, 0, E * HARTREE2EV
         else:
-            xs = self.xs_continuum(vi, E, electronE)
+            # transform to energy normalization by multiplying with the density of states at E
+            xs = self.xs_continuum(vi, E, electronE) * density_of_states_at_E
             return electronE_f * HARTREE2EV, xs * AU2MB, E * HARTREE2EV
 
-    def spectrum_continuum(self, electronE, vi, energies):
+    def spectrum_continuum(self, electronE, vi, vib_energies):
         electronE *= EV2HARTREE
+        density_of_states = 1/(vib_energies[1:-1] - vib_energies[0:-2])
+        density_of_states.append(density_of_states[-1])
         with Pool() as pool:
             result = pool.starmap(
-                self.function_for_spectrum, zip(repeat(electronE), repeat(vi), energies)
+                self.function_for_spectrum, zip(repeat(electronE), repeat(vi), vib_energies, density_of_states)
             )
         return np.array(result)
 
@@ -608,21 +613,23 @@ class InterICEC:
         xs_array = sum(list(result))
         return xs_array
 
-    def function_for_overlap_spectrum(self, vi, electronE, E):
+    def function_for_overlap_spectrum(self, vi, electronE, E, density_of_states_at_E):
         deltaE = E - self.Morse_i.E(vi)
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
         if electronE_f <= 0:
             return [electronE_f * HARTREE2EV, 0, E * HARTREE2EV]
         else:
-            xs = self.overlap_xs_continuum(vi, E, electronE)
+            xs = self.overlap_xs_continuum(vi, E, electronE) * density_of_states_at_E
             return electronE_f * HARTREE2EV, xs * AU2MB, E * HARTREE2EV
 
-    def spectrum_overlap_continuum(self, electronE, vi, energies):
+    def spectrum_overlap_continuum(self, electronE, vi, vib_energies):
         electronE *= EV2HARTREE
+        density_of_states = 1/(vib_energies[1:-1] - vib_energies[0:-2])
+        density_of_states.append(density_of_states[-1])
         with Pool() as pool:
             result = pool.starmap(
                 self.function_for_overlap_spectrum,
-                zip(repeat(vi), repeat(electronE), energies),
+                zip(repeat(vi), repeat(electronE), vib_energies, density_of_states),
             )
         return np.array(result)
 
