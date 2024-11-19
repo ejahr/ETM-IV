@@ -339,8 +339,8 @@ class InterICEC:
             return electronE_f * HARTREE2EV, 0, E * HARTREE2EV
         else:
             modifiedFC = self.modified_FC_continuum(vi, E)
-            return modifiedFC  # a.u.
-
+            return electronE_f*HARTREE2EV, modifiedFC, E*HARTREE2EV # a.u.
+        
     def spectrum_continuum_FC(self, electronE, vi, energies):
         electronE *= EV2HARTREE
         with Pool() as pool:
