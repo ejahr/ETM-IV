@@ -1,8 +1,5 @@
 import numpy as np
-import scipy as sp
 import matplotlib.pyplot as plt
-from itertools import repeat
-from multiprocessing import Pool
 
 # Constants in atomic units
 c = 137
