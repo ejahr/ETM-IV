@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sp
 import mpmath
+import copy
 import matplotlib.pyplot as plt
 from itertools import repeat
 from multiprocessing import Pool
@@ -471,8 +472,15 @@ class InterICEC:
 # ========== with internuclear vibrational motion ==========
 # ==========================================================
 class OverlapInterICEC(InterICEC):
-
-    def define_parameters(self, a_A, a_B, C, d, lmax=10, gaussian_type="s"):
+        
+    @classmethod
+    def from_InterICEC(cls, InstanceICEC: InterICEC):
+        ''' generate an instance of OverlapInterICEC from an instance of InterICEC '''
+        new_inst = copy.deepcopy(InterICEC) 
+        new_inst.__class__ = cls
+        return new_inst
+    
+    def define_overlap_parameters(self, a_A, a_B, C, d, lmax=10, gaussian_type="s"):
         self.a_A = a_A
         self.a_B = a_B
         self.C = C
