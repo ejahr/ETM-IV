@@ -439,8 +439,40 @@ class InterICEC:
             )
         return np.array(result)
 
-    # ===== OVERLAP CONTRIBUTION =====
-    def define_overlap_parameters(self, a_A, a_B, C, d, lmax=10, gaussian_type="s"):
+    # ===== PLOTTING FUNCTIONS =====
+
+    def plot_xs(self, ax, ICEC_xs, label="ICEC", **kwargs):
+        """Plots the cross section [Mb] for a given vibrational transition w.r.t. the energy of the incoming electron."""
+        ax.plot(self.energyGrid * HARTREE2EV, ICEC_xs, label=label, **kwargs)
+        ax.set_xlabel(r"$E_\text{el}$ [eV]")
+        ax.set_ylabel(r"$\sigma$ [Mb]")
+        ax.set_yscale("log")
+        ax.set_title("ICEC cross section")
+
+    def plot_PR_xs(self, ax, label="PR", linestyle="dashed", **kwargs):
+        """Plots the photorecombination cross section [a.u.] w.r.t. the energy of the electron."""
+        PR_xs = np.array([])
+        for electronE in self.energyGrid:
+            hbarOmega = electronE + self.IP_A
+            PI_xs = self.PI_xs_A(hbarOmega * HARTREE2EV) * MB2AU
+            xs = self.degeneracyFactor * hbarOmega**2 / (2 * electronE * c**2) * PI_xs
+            PR_xs = np.append(PR_xs, [xs * AU2MB])
+        ax.plot(
+            self.energyGrid * HARTREE2EV,
+            PR_xs,
+            label=label,
+            linestyle=linestyle,
+            **kwargs,
+        )
+
+# ==========================================================
+# =================== ICEC cross section ===================
+# ==== for the Overlap (electron transfer) contribution ====
+# ========== with internuclear vibrational motion ==========
+# ==========================================================
+class OverlapInterICEC(InterICEC):
+
+    def define_parameters(self, a_A, a_B, C, d, lmax=10, gaussian_type="s"):
         self.a_A = a_A
         self.a_B = a_B
         self.C = C
@@ -448,8 +480,8 @@ class InterICEC:
         self.lmax = lmax  # upper bound for the partial wave expansion
         self.gaussian_type = gaussian_type  # gaussian orbital type for Sab
 
-    # ===== OVERLAP : BOUND - BOUND TRANSITION =====
-    def overlap_FC(self, l, electronE, electronE_f, vi, vf):
+    # ===== BOUND - BOUND TRANSITION =====
+    def modified_FC(self, l, electronE, electronE_f, vi, vf):
         """ <psi_vi|r^-3 exp()|psi_vf>
         - l : total angular momentum of the partial wave
         """
@@ -467,7 +499,7 @@ class InterICEC:
         result, error = sp.integrate.quad(integrand, 0, np.inf)
         return result
 
-    def overlap_xs(self, vi, vf, electronE):
+    def xs(self, vi, vf, electronE):
         """Cross section [a.u.] of the overlap contribution.
         - electronE [Hartree] : kinetic energy of incoming electron
         """
@@ -494,31 +526,31 @@ class InterICEC:
             C = self.C * np.exp(-abs(electronE - electronE_f) / self.d)
             sum_l = sum(
                 (2 * l + 1)
-                * abs(self.overlap_FC(l, electronE, electronE_f, vi, vf)) ** 2
+                * abs(self.modified_FC(l, electronE, electronE_f, vi, vf)) ** 2
                 for l in range(self.lmax + 1)
             )
             xs = prefactor / electronE ** (3 / 2) / np.sqrt(electronE_f) * sum_l * C
             return xs
 
-    def overlap_xs_vivf(self, vi, vf):
+    def xs_vivf(self, vi, vf):
         """Cross section [Mb] of the overlap contribution for vi -> vf over range of electron energies."""
         xs_array = np.array(
-            [self.overlap_xs(vi, vf, energy) for energy in self.energyGrid]
+            [self.xs(vi, vf, energy) for energy in self.energyGrid]
         )
         return xs_array * AU2MB
 
-    def overlap_xs_vi(self, vi):
+    def xs_vi(self, vi):
         """Cross section [Mb] of the overlap contribution for vi -> bound states over range of electron energies.
         POOL WORKS ONLY IN JUPYTER ON UNIX BASED SYSTEMS
         """
         with Pool() as pool:
             result = pool.starmap(
-                self.overlap_xs_vivf, zip(repeat(vi), range(self.Morse_f.vmax + 1))
+                self.xs_vivf, zip(repeat(vi), range(self.Morse_f.vmax + 1))
             )
         xs_array = sum(list(result))
         return xs_array
 
-    def spectrum_overlap(self, electronE, vi=0):
+    def spectrum(self, electronE, vi=0):
         """Overlap cross sections [Mb] for vi -> bound states given  a single electron energy."""
         electronE *= EV2HARTREE
         spectrum = []
@@ -526,12 +558,12 @@ class InterICEC:
             deltaE = self.Morse_f.E(vf) - self.Morse_i.E(vi)
             electronE_f = electronE + self.IP_A - self.IP_B - deltaE
             if electronE_f >= 0:
-                xs = self.overlap_xs(vi, vf, electronE)
+                xs = self.xs(vi, vf, electronE)
                 spectrum.append([electronE_f * HARTREE2EV, xs * AU2MB, vf])
         return np.array(spectrum)
 
-    # ===== OVERLAP : BOUND - CONTINUUM TRANSITION =====
-    def overlap_FC_continuum(self, vi, E, electronE, electronE_f, l, lower_bound, norm):
+    # ===== BOUND - CONTINUUM TRANSITION =====
+    def FC_continuum(self, vi, E, electronE, electronE_f, l, lower_bound, norm):
         """Integral over R-dependent factors of |\int psi_E* psi_vi R^-1 Sab ⟨kf-|ki+⟩ dR|^2
         - l : total angular momentum of the partial wave
         """
@@ -558,7 +590,7 @@ class InterICEC:
 
         return (mpmath.fabs(norm * result)) ** 2
 
-    def overlap_xs_continuum(self, vi, E, electronE, lower_bound=None, norm=None):
+    def xs_continuum(self, vi, E, electronE, lower_bound=None, norm=None):
         """Cross section (a.u.) of the overlap contribution.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         """
@@ -593,45 +625,45 @@ class InterICEC:
             C = self.C * mpmath.exp(-mpmath.fabs(electronE - electronE_f) / self.d)
             sum_l = sum(
                 (2 * l + 1)
-                * self.overlap_FC_continuum(vi, E, electronE, electronE_f, l, lower_bound, norm)
+                * self.FC_continuum(vi, E, electronE, electronE_f, l, lower_bound, norm)
                 for l in range(self.lmax + 1)
             )
             xs = prefactor / electronE ** (3 / 2) / mpmath.sqrt(electronE_f) * sum_l * C
             # xs = prefactor / electronE**(3/2) * sum_l * C # TEST
             return np.abs(xs)
 
-    def overlap_xs_vi_to_E(self, vi, E):
+    def xs_vi_to_E(self, vi, E):
         """Overlap cross section [Mb] for vi -> E over range of electron energies."""
         lower_bound = self.Morse_f.get_lower_bound(E)
         norm = self.Morse_f.norm_diss(E, lower_bound)
         xs_array = np.array(
-            [ self.overlap_xs_continuum(vi, E, energy, lower_bound, norm)
+            [ self.xs_continuum(vi, E, energy, lower_bound, norm)
             for energy in self.energyGrid ]
         )
         return xs_array * AU2MB
 
-    def overlap_xs_vi_to_continuum(self, vi, diss_energies):
+    def xs_vi_to_continuum(self, vi, diss_energies):
         """Overlap cross section [Mb] for vi -> continuum over range of electron energies.
         - diss_energies [Hartree] : energies of all possible dissociative states (in a box)
         POOL WORKS ONLY IN JUPYTER ON UNIX BASED SYSTEMS
         """
         with Pool() as pool:
             result = pool.starmap(
-                self.overlap_xs_vi_to_E, zip(repeat(vi), diss_energies)
+                self.xs_vi_to_E, zip(repeat(vi), diss_energies)
             )
         xs_array = sum(list(result))
         return xs_array
 
-    def function_for_overlap_spectrum(self, vi, electronE, E, density_of_states_at_E):
+    def function_for_spectrum(self, vi, electronE, E, density_of_states_at_E):
         deltaE = E - self.Morse_i.E(vi)
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
         if electronE_f <= 0:
             return [electronE_f * HARTREE2EV, 0, E * HARTREE2EV]
         else:
-            xs = self.overlap_xs_continuum(vi, E, electronE) * density_of_states_at_E
+            xs = self.xs_continuum(vi, E, electronE) * density_of_states_at_E
             return electronE_f * HARTREE2EV, xs * AU2MB, E * HARTREE2EV
 
-    def spectrum_overlap_continuum(self, electronE, vi, diss_energies):
+    def spectrum_continuum(self, electronE, vi, diss_energies):
         """ Overlap cross sections [Mb] for vi -> continuum given a single electron energy.
         - electronE [Hartree] : kinetic energy of incoming electron 
         - diss_energies [Hartree] : energies of all possible dissociative states (in a box)
@@ -641,33 +673,7 @@ class InterICEC:
         density_of_states.append(density_of_states[-1])
         with Pool() as pool:
             result = pool.starmap(
-                self.function_for_overlap_spectrum,
+                self.function_for_spectrum,
                 zip(repeat(vi), repeat(electronE), diss_energies, density_of_states),
             )
         return np.array(result)
-
-    # ===== PLOTTING FUNCTIONS =====
-
-    def plot_xs(self, ax, ICEC_xs, label="ICEC", **kwargs):
-        """Plots the cross section [Mb] for a given vibrational transition w.r.t. the energy of the incoming electron."""
-        ax.plot(self.energyGrid * HARTREE2EV, ICEC_xs, label=label, **kwargs)
-        ax.set_xlabel(r"$E_\text{el}$ [eV]")
-        ax.set_ylabel(r"$\sigma$ [Mb]")
-        ax.set_yscale("log")
-        ax.set_title("ICEC cross section")
-
-    def plot_PR_xs(self, ax, label="PR", linestyle="dashed", **kwargs):
-        """Plots the photorecombination cross section [a.u.] w.r.t. the energy of the electron."""
-        PR_xs = np.array([])
-        for electronE in self.energyGrid:
-            hbarOmega = electronE + self.IP_A
-            PI_xs = self.PI_xs_A(hbarOmega * HARTREE2EV) * MB2AU
-            xs = self.degeneracyFactor * hbarOmega**2 / (2 * electronE * c**2) * PI_xs
-            PR_xs = np.append(PR_xs, [xs * AU2MB])
-        ax.plot(
-            self.energyGrid * HARTREE2EV,
-            PR_xs,
-            label=label,
-            linestyle=linestyle,
-            **kwargs,
-        )
