@@ -475,7 +475,9 @@ class OverlapInterICEC(InterICEC):
         
     @classmethod
     def from_InterICEC(cls, InstanceICEC: InterICEC):
-        ''' generate an instance of OverlapInterICEC from an instance of InterICEC '''
+        ''' generate an instance of OverlapInterICEC from an instance of InterICEC 
+        https://stackoverflow.com/questions/71209560/initialize-a-superclass-with-an-existing-object-copy-constructor
+        '''
         new_inst = copy.deepcopy(InterICEC) 
         new_inst.__class__ = cls
         return new_inst
