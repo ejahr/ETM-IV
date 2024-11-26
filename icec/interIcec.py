@@ -415,6 +415,13 @@ class InterICEC:
         # maxE = (self.energyGrid[-1] + self.IP_A - self.IP_B + self.Morse_i.E(vi))*HARTREE2EV
         # print("Maximum vibrational E for highest initial kin.E:", maxE, 'eV' )
         return xs_vi
+    
+    def get_density_of_states(self, diss_energies):
+        density_of_states = np.zeros(len(diss_energies))
+        density_of_states[1:-1] = 2/(diss_energies[2:] - diss_energies[0:-2])
+        density_of_states[0] = 1/(diss_energies[1]-diss_energies[0])
+        density_of_states[-1] = 1/(diss_energies[-1]-diss_energies[-2])
+        return density_of_states
 
     def function_for_spectrum(self, electronE, vi, E, density_of_states_at_E):
         deltaE = E - self.Morse_i.E(vi)
@@ -432,8 +439,7 @@ class InterICEC:
         - diss_energies [Hartree] : energies of all possible dissociative states (in a box)
         """
         electronE *= EV2HARTREE
-        density_of_states = 1/(diss_energies[1:-1] - diss_energies[0:-2])
-        density_of_states.append(density_of_states[-1])
+        density_of_states = self.get_density_of_states(diss_energies)
         with Pool() as pool:
             result = pool.starmap(
                 self.function_for_spectrum, zip(repeat(electronE), repeat(vi), diss_energies, density_of_states)
@@ -478,7 +484,7 @@ class OverlapInterICEC(InterICEC):
         ''' generate an instance of OverlapInterICEC from an instance of InterICEC 
         https://stackoverflow.com/questions/71209560/initialize-a-superclass-with-an-existing-object-copy-constructor
         '''
-        new_inst = copy.deepcopy(InterICEC) 
+        new_inst = copy.deepcopy(InstanceICEC) 
         new_inst.__class__ = cls
         return new_inst
     
