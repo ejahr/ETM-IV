@@ -111,6 +111,7 @@ class ICEC:
     def xs_R(self, electronE):
         """ Calculate cross section (Mb) of ICEC for given range of interatomic distances.
         - electronE : energy of incoming electron (eV) 
+        - R : interatomic distance (Bohr, a.u.)
         """
         electronE = electronE * EV2HARTREE
         if not hasattr(self, 'rGrid'):
@@ -201,27 +202,3 @@ class OverlapICEC(ICEC):
             sum_l *= C
             # cross section
             return 4*np.pi / electronE**(3/2) / np.sqrt(electronE_f) / R**2 * self.Sab(R) * sum_l
-
-    def xs_energy(self, R):
-        """ Calculates cross section (Mb) of the overlap contribution for given range of kinetic energies.
-        - R: internuclear distance: (Bohr, a.u.)
-        """    
-        overlap_xs = np.array([
-            self.xs(energy, R)
-            for energy in self.energyGrid
-        ])
-        return overlap_xs * AU2MB
-    
-    def xs_R(self, electronE):
-        """ Calculates cross section (Mb) of the overlap contribution for given range of interatomic distances.
-        - electronE : energy of incoming electron (eV) 
-        - R : interatomic distance (Bohr, a.u.)
-        """
-        electronE = electronE * EV2HARTREE
-        if not hasattr(self, 'rGrid'):
-            self.make_R_grid()
-        overlap_xs = np.array([
-            self.xs(electronE, R)
-            for R in self.rGrid
-        ])
-        return overlap_xs * AU2MB
