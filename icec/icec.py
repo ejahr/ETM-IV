@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
 
 # Constants in atomic units
 c = 137
@@ -148,6 +149,15 @@ class ICEC:
         
         
 class OverlapICEC(ICEC):
+    @classmethod
+    def from_ICEC(cls, InstanceICEC: ICEC):
+        ''' generate an instance of OverlapInterICEC from an instance of InterICEC 
+        https://stackoverflow.com/questions/71209560/initialize-a-superclass-with-an-existing-object-copy-constructor
+        '''
+        new_inst = copy.deepcopy(InstanceICEC) 
+        new_inst.__class__ = cls
+        return new_inst
+    
     def define_overlap_parameters(self, a_A, a_B, C, d, lmax=10, gaussian_type='s'):
         ''' Defines the overlap parameters, including fitting parameters
         - lmax: upper bound for sum over l -> set large enough for convergence
