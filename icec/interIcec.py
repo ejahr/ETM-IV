@@ -239,7 +239,7 @@ class InterICEC:
         result, error = sp.integrate.quad(integrand, 0, np.inf)
         return result
 
-    def xs_bound(self, vi, vf, electronE, modifiedFC=None):
+    def xs_bb(self, vi, vf, electronE, modifiedFC=None):
         """ Cross section [a.u.] for vi -> vf given some electron energy.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         - modifiedFC : <psi_vi|r^-3|psi_vf>
@@ -271,12 +271,14 @@ class InterICEC:
             self.make_energy_grid()
         modifiedFC = (abs(self.modified_FC_factor(vi, vf))) ** 2
         xs_array = np.array(
-            [self.xs_bound(vi, vf, energy, modifiedFC) for energy in self.energyGrid]
+            [self.xs_bb(vi, vf, energy, modifiedFC) for energy in self.energyGrid]
         )
         return xs_array * AU2MB
 
     def xs_vi(self, vi):
-        """ Cross section [Mb] for vi -> bound states over range of electron energies."""
+        """ Cross section [Mb] for vi -> bound states over range of electron energies.
+        POOL WORKS ONLY IN JUPYTER ON UNIX BASED SYSTEMS
+        """
         with Pool() as pool:
             result = pool.starmap(
                 self.xs_vivf, zip(repeat(vi), range(self.Morse_f.vmax + 1))
@@ -291,7 +293,7 @@ class InterICEC:
         xs_array = sum(self.xs_vi(vi) for vi in range(self.Morse_i.vmax + 1))
         return xs_array / self.Morse_i.vmax
 
-    def spectrum_bound(self, electronE, vi=0):
+    def spectrum_bb(self, electronE, vi=0):
         """ Cross sections [Mb] for vi -> bound states given some electron energy.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         """
@@ -301,13 +303,13 @@ class InterICEC:
             deltaE = self.Morse_f.E(vf) - self.Morse_i.E(vi)
             electronE_f = electronE + self.IP_A - self.IP_B - deltaE
             if electronE_f >= 0:
-                xs = self.xs_bound(vi, vf, electronE)
+                xs = self.xs_bb(vi, vf, electronE)
                 spectrum.append([electronE_f * HARTREE2EV, xs * AU2MB, vf])
         return np.array(spectrum)
 
     # ===== BOUND - CONTINUUM TRANSITION =====
 
-    def modified_FC_continuum(self, vi, E, lower_bound=None, norm=None):
+    def FC_continuum(self, vi, E, lower_bound=None, norm=None):
         """|<psi(E)|r^-3|psi_vi>|^2
         norm: normalization constant for the vibrational continuum state
         divide integration into intervals to deal with highly oscillating integrand
@@ -340,10 +342,10 @@ class InterICEC:
         if electronE_f <= 0:
             return electronE_f * HARTREE2EV, 0, E * HARTREE2EV
         else:
-            modifiedFC = self.modified_FC_continuum(vi, E) * density_of_states_at_E
+            modifiedFC = self.FC_continuum(vi, E) * density_of_states_at_E
             return electronE_f*HARTREE2EV, modifiedFC, E*HARTREE2EV # a.u.
         
-    def spectrum_continuum_FC(self, electronE, vi, diss_energies):
+    def spectrum_bc_FC(self, electronE, vi, diss_energies):
         electronE *= EV2HARTREE
         density_of_states = 1/(diss_energies[1:-1] - diss_energies[0:-2])
         density_of_states.append(density_of_states[-1])
@@ -353,14 +355,14 @@ class InterICEC:
             )
         return np.array(result)
 
-    def xs_continuum(self, vi, E, electronE, modifiedFC=None, norm=None):
+    def xs_bc(self, vi, E, electronE, modifiedFC=None, norm=None):
         """Cross section [a.u.] for one bound-continuum vibrational transition vi -> E.
         - E [Hartree] : energy of the dissociative Morse state
         - electronE [Hartree] : kinetic energy of incoming electron
         - modifiedFC [a.u.] : |<psi_vf|r^-3|psi_E>|^2
         """
         if modifiedFC is None:
-            modifiedFC = self.modified_FC_continuum(vi, E, norm=norm)
+            modifiedFC = self.FC_continuum(vi, E, norm=norm)
         # energy that goes into the vibrational transition (Hartree, a.u.)
         deltaE = E - self.Morse_i.E(vi)  
         electronE_f = electronE + self.IP_A - self.IP_B - deltaE
@@ -388,7 +390,7 @@ class InterICEC:
         """
         omegaA = electronE + self.IP_A
         max_energy = omegaA - self.IP_B + self.Morse_i.E(vi)
-        xs = sum(self.xs_continuum(vi, E) for E in diss_energies if E <= max_energy)
+        xs = sum(self.xs_bc(vi, E) for E in diss_energies if E <= max_energy)
         return xs
 
     def xs_vi_to_E(self, vi, E):
@@ -399,22 +401,25 @@ class InterICEC:
             self.Morse_f.define_box()
         lower_bound = self.Morse_f.get_lower_bound(E)
         norm = self.Morse_f.norm_diss(E, lower_bound)
-        modifiedFC = self.modified_FC_continuum(vi, E, lower_bound, norm)
+        modifiedFC = self.FC_continuum(vi, E, lower_bound, norm)
         xs_array = np.array(
-            [self.xs_continuum(vi, E, energy, modifiedFC) for energy in self.energyGrid]
+            [self.xs_bc(vi, E, energy, modifiedFC) for energy in self.energyGrid]
         )
         return xs_array * AU2MB
 
     def xs_vi_to_continuum(self, vi, diss_energies):
         """Cross section [Mb] for vi -> continuum over range of electron energies.
         - diss_energies [Hartree] : energies of all possible dissociative states (in a box)
+        POOL WORKS ONLY IN JUPYTER ON UNIX BASED SYSTEMS
         """
         with Pool() as pool:
-            result = pool.starmap(self.xs_vi_to_E, zip(repeat(vi), diss_energies))
-        xs_vi = sum(list(result))
+            result = pool.starmap(
+                self.xs_vi_to_E, zip(repeat(vi), diss_energies)
+            )
+        xs_array = sum(list(result))
         # maxE = (self.energyGrid[-1] + self.IP_A - self.IP_B + self.Morse_i.E(vi))*HARTREE2EV
         # print("Maximum vibrational E for highest initial kin.E:", maxE, 'eV' )
-        return xs_vi
+        return xs_array
     
     def get_density_of_states(self, diss_energies):
         density_of_states = np.zeros(len(diss_energies))
@@ -430,10 +435,10 @@ class InterICEC:
             return electronE_f * HARTREE2EV, 0, E * HARTREE2EV
         else:
             # transform to energy normalization by multiplying with the density of states at E
-            xs = self.xs_continuum(vi, E, electronE) * density_of_states_at_E
+            xs = self.xs_bc(vi, E, electronE) * density_of_states_at_E
             return electronE_f * HARTREE2EV, xs * AU2MB, E * HARTREE2EV
 
-    def spectrum_continuum(self, electronE, vi, diss_energies):
+    def spectrum_bc(self, electronE, vi, diss_energies):
         """ Cross sections [Mb] for vi -> continuum given a single electron energy.
         - electronE [Hartree] : kinetic energy of incoming electron 
         - diss_energies [Hartree] : energies of all possible dissociative states (in a box)
@@ -442,7 +447,8 @@ class InterICEC:
         density_of_states = self.get_density_of_states(diss_energies)
         with Pool() as pool:
             result = pool.starmap(
-                self.function_for_spectrum, zip(repeat(electronE), repeat(vi), diss_energies, density_of_states)
+                self.function_for_spectrum, 
+                zip(repeat(electronE), repeat(vi), diss_energies, density_of_states)
             )
         return np.array(result)
 
@@ -515,7 +521,7 @@ class OverlapInterICEC(InterICEC):
         result, error = sp.integrate.quad(integrand, 0, np.inf)
         return result
 
-    def xs(self, vi, vf, electronE):
+    def xs_bb(self, vi, vf, electronE):
         """Cross section [a.u.] of the overlap contribution.
         - electronE [Hartree] : kinetic energy of incoming electron
         """
@@ -555,29 +561,6 @@ class OverlapInterICEC(InterICEC):
         )
         return xs_array * AU2MB
 
-    def xs_vi(self, vi):
-        """Cross section [Mb] of the overlap contribution for vi -> bound states over range of electron energies.
-        POOL WORKS ONLY IN JUPYTER ON UNIX BASED SYSTEMS
-        """
-        with Pool() as pool:
-            result = pool.starmap(
-                self.xs_vivf, zip(repeat(vi), range(self.Morse_f.vmax + 1))
-            )
-        xs_array = sum(list(result))
-        return xs_array
-
-    def spectrum(self, electronE, vi=0):
-        """Overlap cross sections [Mb] for vi -> bound states given  a single electron energy."""
-        electronE *= EV2HARTREE
-        spectrum = []
-        for vf in range(self.Morse_f.vmax + 1):
-            deltaE = self.Morse_f.E(vf) - self.Morse_i.E(vi)
-            electronE_f = electronE + self.IP_A - self.IP_B - deltaE
-            if electronE_f >= 0:
-                xs = self.xs(vi, vf, electronE)
-                spectrum.append([electronE_f * HARTREE2EV, xs * AU2MB, vf])
-        return np.array(spectrum)
-
     # ===== BOUND - CONTINUUM TRANSITION =====
     def FC_continuum(self, vi, E, electronE, electronE_f, l, lower_bound, norm):
         """Integral over R-dependent factors of |\int psi_E* psi_vi R^-1 Sab ⟨kf-|ki+⟩ dR|^2
@@ -606,7 +589,7 @@ class OverlapInterICEC(InterICEC):
 
         return (mpmath.fabs(norm * result)) ** 2
 
-    def xs_continuum(self, vi, E, electronE, lower_bound=None, norm=None):
+    def xs_bc(self, vi, E, electronE, lower_bound=None, norm=None):
         """Cross section (a.u.) of the overlap contribution.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         """
@@ -653,42 +636,6 @@ class OverlapInterICEC(InterICEC):
         lower_bound = self.Morse_f.get_lower_bound(E)
         norm = self.Morse_f.norm_diss(E, lower_bound)
         xs_array = np.array(
-            [ self.xs_continuum(vi, E, energy, lower_bound, norm)
-            for energy in self.energyGrid ]
+            [ self.xs_bc(vi, E, energy, lower_bound, norm) for energy in self.energyGrid ]
         )
         return xs_array * AU2MB
-
-    def xs_vi_to_continuum(self, vi, diss_energies):
-        """Overlap cross section [Mb] for vi -> continuum over range of electron energies.
-        - diss_energies [Hartree] : energies of all possible dissociative states (in a box)
-        POOL WORKS ONLY IN JUPYTER ON UNIX BASED SYSTEMS
-        """
-        with Pool() as pool:
-            result = pool.starmap(
-                self.xs_vi_to_E, zip(repeat(vi), diss_energies)
-            )
-        xs_array = sum(list(result))
-        return xs_array
-
-    def function_for_spectrum(self, vi, electronE, E, density_of_states_at_E):
-        deltaE = E - self.Morse_i.E(vi)
-        electronE_f = electronE + self.IP_A - self.IP_B - deltaE
-        if electronE_f <= 0:
-            return [electronE_f * HARTREE2EV, 0, E * HARTREE2EV]
-        else:
-            xs = self.xs_continuum(vi, E, electronE) * density_of_states_at_E
-            return electronE_f * HARTREE2EV, xs * AU2MB, E * HARTREE2EV
-
-    def spectrum_continuum(self, electronE, vi, diss_energies):
-        """ Overlap cross sections [Mb] for vi -> continuum given a single electron energy.
-        - electronE [Hartree] : kinetic energy of incoming electron 
-        - diss_energies [Hartree] : energies of all possible dissociative states (in a box)
-        """
-        electronE *= EV2HARTREE
-        density_of_states = self.get_density_of_states(diss_energies)
-        with Pool() as pool:
-            result = pool.starmap(
-                self.function_for_spectrum,
-                zip(repeat(vi), repeat(electronE), diss_energies, density_of_states),
-            )
-        return np.array(result)
