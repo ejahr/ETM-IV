@@ -1,25 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import copy
-
-# Constants in atomic units
-c = 137
-
-# energy
-EV2HARTREE = 3.67493e-2
-HARTREE2EV = 27.2114
-WAVENUMBER2HARTREE = 4.55633e-6
-
-# length
-M2BOHR = 18897259885.789 
-BOHR2M = 5.2917721941e-11
-ANGSTROM2BOHR = 1.8897259886
-BOHR2ANGSTROM = 0.529177249
-
-# cross section
-MB2M2 = 1e-22
-MB2AU = MB2M2 * M2BOHR**2
-AU2MB = BOHR2M**2 / MB2M2
+from crosssection.icec.constants import *
 
 ## ICEC cross section for atom - atom
 # Cross section
