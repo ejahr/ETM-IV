@@ -75,6 +75,10 @@ class Morse:
     def intersection_V(self, E):
         arg = (-self.De + np.sqrt(self.De**2 + self.De * E)) / E
         return self.req + np.log(arg) / self.alpha
+    
+    def reflection_point(self, E):
+        arg = 1 + np.sqrt((E + self.De)/self.De)
+        return self.req - np.log(arg)/self.alpha
 
     def define_box(self, box_length=10 * ANGSTROM2BOHR):
         self.box_length = box_length
@@ -304,16 +308,21 @@ class InterICEC:
         def integrand(r):
             return mpmath.conj(self.Morse_f.psi_diss(E, r)) * self.Morse_i.psi(vi, r) / r ** 3
         
-        num_intervals = self.Morse_f.estimate_oscillation(E)
-        if num_intervals < 4:
-            result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
-        else:
-            intervals = np.linspace(
-                lower_bound, self.Morse_f.box_length, num_intervals + 1
-            )
-            result = 0
-            for i in range(num_intervals):
-                result += mpmath.quad(integrand, [intervals[i], intervals[i + 1]])
+        #num_intervals = self.Morse_f.estimate_oscillation(E)
+        #if num_intervals < 4:
+        #    result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
+        #else:
+        #    intervals = np.linspace(
+        #        lower_bound, self.Morse_f.box_length, num_intervals + 1
+        #    )
+        #    result = 0
+        #    for i in range(num_intervals):
+        #        result += mpmath.quad(integrand, [intervals[i], intervals[i + 1]])
+                
+        r_reflection = self.Morse_f.reflection_point(E)
+        rmax = max(self.Morse_i.rmax, self.Morse_f.rmax)
+        subintervals = [lower_bound, r_reflection, rmax, self.Morse_f.box_length]
+        result = mpmath.quadsubdiv(integrand, subintervals)
 
         return (mpmath.fabs(norm * result)) ** 2
 
@@ -557,16 +566,20 @@ class OverlapInterICEC(InterICEC):
                 return mpmath.conj(self.Morse_f.psi_diss(E, r)) * self.Morse_i.psi(vi, r) \
                     * mpmath.exp(-0.5 * r ** 2 / a_AB - 0.5 * l * (l + 1) / (electronE * (self.a_A + r) ** 2 + electronE_f * (self.a_B + r) ** 2))
 
-        num_intervals = self.Morse_f.estimate_oscillation(E)
-        if num_intervals < 4:
-            result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
-        else:
-            intervals = np.linspace(
-                lower_bound, self.Morse_f.box_length, num_intervals + 1
-            )
-            result = 0
-            for i in range(num_intervals):
-                result += mpmath.quad(integrand, [intervals[i], intervals[i + 1]])
+        r_reflection = self.Morse_f.reflection_point(E)
+        rmax = max(self.Morse_i.rmax, self.Morse_f.rmax)
+        subintervals = [lower_bound, r_reflection, rmax, self.Morse_f.box_length]
+        result = mpmath.quadsubdiv(integrand, subintervals)
+        
+        #num_intervals = self.Morse_f.estimate_oscillation(E)
+        #if num_intervals <= 4:
+        #else:
+        #    intervals = np.linspace(
+        #        r_reflection, self.Morse_f.box_length, num_intervals + 1
+        #    )
+        #    result = mpmath.quad(integrand, [lower_bound, r_reflection])
+        #    for i in range(num_intervals):
+        #        result += mpmath.quad(integrand, [intervals[i], intervals[i + 1]])
 
         return (mpmath.fabs(norm * result)) ** 2
 
