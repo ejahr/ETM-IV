@@ -293,6 +293,9 @@ class InterICEC:
         return np.array(spectrum)
 
     # ===== BOUND - CONTINUUM TRANSITION =====
+    
+    def FC_integrand(self, vi, E, r):
+        return mpmath.conj(self.Morse_f.psi_diss(E, r)) * self.Morse_i.psi(vi, r) / r ** 3
 
     def FC_continuum(self, vi, E, lower_bound=None, norm=None):
         """|<psi(E)|r^-3|psi_vi>|^2
@@ -552,6 +555,12 @@ class OverlapInterICEC(InterICEC):
         return xs_array * AU2MB
 
     # ===== BOUND - CONTINUUM TRANSITION =====
+    
+    def FC_integrand(self, vi, E, electronE, electronE_f, l, r):
+        a_AB = self.a_A**2 + self.a_B**2
+        return mpmath.conj(self.Morse_f.psi_diss(E, r)) * self.Morse_i.psi(vi, r) / r \
+            * mpmath.exp(-0.5 * r ** 2 / a_AB - 0.5 * l * (l + 1) / (electronE * (self.a_A + r) ** 2 + electronE_f * (self.a_B + r) ** 2))
+    
     def FC_continuum(self, vi, E, electronE, electronE_f, l, lower_bound, norm):
         """Integral over R-dependent factors of |\int psi_E* psi_vi R^-1 Sab ⟨kf-|ki+⟩ dR|^2
         - l : total angular momentum of the partial wave
