@@ -104,18 +104,20 @@ class Morse:
         """ Box normalization of the dissociative Morse states.
         These states can be highly-oscillating 
         """
-        if lower_bound is None:
-            lower_bound = self.get_lower_bound(E)
         def integrand(r):
             return mpmath.conj(self.psi_diss(E, r)) * self.psi_diss(E, r)
+        if lower_bound is None:
+            lower_bound = self.get_lower_bound(E)
+        r_reflection = self.reflection_point(E)
         num_intervals = self.estimate_oscillation(E)
-        if num_intervals < 4:
-            norm = mpmath.quad(integrand, [lower_bound, self.box_length])
+        if num_intervals < 5:
+            norm = mpmath.quadsubdiv(integrand, [lower_bound, r_reflection, self.rmax, self.box_length])
         else:
-            intervals = np.linspace(lower_bound, self.box_length, num_intervals + 1)
-            norm = 0
-            for i in range(num_intervals):
-                norm += mpmath.quad(integrand, [intervals[i], intervals[i + 1]])
+            norm = mpmath.quadsubdiv(integrand, [lower_bound, r_reflection])
+            intervals_mid = np.linspace(r_reflection, self.rmax, num_intervals + 1)
+            norm += mpmath.quadsubdiv(integrand, intervals_mid)
+            intervals_high = np.linspace(self.rmax, self.box_length, num_intervals + 1)
+            norm += mpmath.quadsubdiv(integrand, intervals_high)
         return 1 / mpmath.sqrt(norm)
 
     def psi_diss(self, E, r):
