@@ -40,7 +40,7 @@ class Morse:
         self.vmax = int(self.lam - 0.5)
 
         self.rmin = self.req - np.log(2) / self.alpha
-        f = 0.999
+        f = 0.99
         self.rmax = self.req - np.log(1 - f) / self.alpha
 
     def V(self, r):
@@ -298,36 +298,36 @@ class InterICEC:
     
     def FC_integrand(self, vi, E, r):
         return mpmath.conj(self.Morse_f.psi_diss(E, r)) * self.Morse_i.psi(vi, r) / r ** 3
+    
+    def integrate_r(self, integrand, vi, E, lower_bound=None):
+        if lower_bound is None:
+            lower_bound = self.Morse_f.get_lower_bound(E)
+        r_reflection = self.Morse_f.reflection_point(E)
+        rmax = max(self.Morse_i.rmax, self.Morse_f.rmax)
+
+        num_intervals = self.Morse_f.estimate_oscillation(E)
+        if num_intervals < 5:
+            return mpmath.quadsubdiv(integrand, [lower_bound, r_reflection, rmax, self.Morse_f.box_length])
+        else:
+            result = mpmath.quadsubdiv(integrand, [lower_bound, r_reflection])
+            intervals_mid = np.linspace(r_reflection, rmax, (vi+2)*num_intervals+1)
+            result += mpmath.quadsubdiv(integrand, intervals_mid)
+            intervals_high = np.linspace(rmax, self.Morse_f.box_length, num_intervals+1)
+            result += mpmath.quadsubdiv(integrand, intervals_high)
+            return result
 
     def FC_continuum(self, vi, E, lower_bound=None, norm=None):
         """|<psi(E)|r^-3|psi_vi>|^2
         norm: normalization constant for the vibrational continuum state
         divide integration into intervals to deal with highly oscillating integrand
-        TODO implement accuracy factor, i.e. what to divide by instead of hardcoded
         """
-        if lower_bound is None:
-            lower_bound = self.Morse_f.get_lower_bound(E)
         if norm is None:
             norm = self.Morse_f.norm_diss(E)
 
         def integrand(r):
             return mpmath.conj(self.Morse_f.psi_diss(E, r)) * self.Morse_i.psi(vi, r) / r ** 3
         
-        #num_intervals = self.Morse_f.estimate_oscillation(E)
-        #if num_intervals < 4:
-        #    result = mpmath.quad(integrand, [lower_bound, self.Morse_f.box_length])
-        #else:
-        #    intervals = np.linspace(
-        #        lower_bound, self.Morse_f.box_length, num_intervals + 1
-        #    )
-        #    result = 0
-        #    for i in range(num_intervals):
-        #        result += mpmath.quad(integrand, [intervals[i], intervals[i + 1]])
-                
-        r_reflection = self.Morse_f.reflection_point(E)
-        rmax = max(self.Morse_i.rmax, self.Morse_f.rmax)
-        subintervals = [lower_bound, r_reflection, rmax, self.Morse_f.box_length]
-        result = mpmath.quadsubdiv(integrand, subintervals)
+        result = self.integrate_r(integrand, vi, E, lower_bound=lower_bound)    
 
         return (mpmath.fabs(norm * result)) ** 2
 
@@ -577,20 +577,7 @@ class OverlapInterICEC(InterICEC):
                 return mpmath.conj(self.Morse_f.psi_diss(E, r)) * self.Morse_i.psi(vi, r) \
                     * mpmath.exp(-0.5 * r ** 2 / a_AB - 0.5 * l * (l + 1) / (electronE * (self.a_A + r) ** 2 + electronE_f * (self.a_B + r) ** 2))
 
-        r_reflection = self.Morse_f.reflection_point(E)
-        rmax = max(self.Morse_i.rmax, self.Morse_f.rmax)
-        subintervals = [lower_bound, r_reflection, rmax, self.Morse_f.box_length]
-        result = mpmath.quadsubdiv(integrand, subintervals)
-        
-        #num_intervals = self.Morse_f.estimate_oscillation(E)
-        #if num_intervals <= 4:
-        #else:
-        #    intervals = np.linspace(
-        #        r_reflection, self.Morse_f.box_length, num_intervals + 1
-        #    )
-        #    result = mpmath.quad(integrand, [lower_bound, r_reflection])
-        #    for i in range(num_intervals):
-        #        result += mpmath.quad(integrand, [intervals[i], intervals[i + 1]])
+        result = self.integrate_r(integrand, vi, E, lower_bound=lower_bound) 
 
         return (mpmath.fabs(norm * result)) ** 2
 
