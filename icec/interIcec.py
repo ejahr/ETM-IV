@@ -95,7 +95,7 @@ class Morse:
         min_index = np.nanargmin(psi_samples)
         return R_samples[min_index]
 
-    def estimate_oscillation(self, E, d=20):
+    def estimate_oscillation(self, E, d=10):
         # particle in a box: E_n = n^2*pi^2/(2*m*L^2)
         n = self.box_length * np.sqrt(2 * self.mu * E) / np.pi
         return round(n / d)  # divide by d to not have just one period per interval
@@ -110,14 +110,14 @@ class Morse:
             lower_bound = self.get_lower_bound(E)
         r_reflection = self.reflection_point(E)
         num_intervals = self.estimate_oscillation(E)
-        if num_intervals < 5:
-            norm = mpmath.quadsubdiv(integrand, [lower_bound, r_reflection, self.rmax, self.box_length])
+        if num_intervals < 10:
+            norm = mpmath.quadsubdiv(integrand, [lower_bound, r_reflection, self.rmax, self.box_length], maxdegree=10)
         else:
-            norm = mpmath.quadsubdiv(integrand, [lower_bound, r_reflection])
+            norm = mpmath.quadsubdiv(integrand, [lower_bound, r_reflection], maxdegree=10)
             intervals_mid = np.linspace(r_reflection, self.rmax, num_intervals + 1)
-            norm += mpmath.quadsubdiv(integrand, intervals_mid)
+            norm += mpmath.quadsubdiv(integrand, intervals_mid, maxdegree=10)
             intervals_high = np.linspace(self.rmax, self.box_length, num_intervals + 1)
-            norm += mpmath.quadsubdiv(integrand, intervals_high)
+            norm += mpmath.quadsubdiv(integrand, intervals_high, maxdegree=10)
         return 1 / mpmath.sqrt(norm)
 
     def psi_diss(self, E, r):
@@ -306,14 +306,15 @@ class InterICEC:
         rmax = max(self.Morse_i.rmax, self.Morse_f.rmax)
 
         num_intervals = self.Morse_f.estimate_oscillation(E)
-        if num_intervals < 5:
-            return mpmath.quadsubdiv(integrand, [lower_bound, r_reflection, rmax, self.Morse_f.box_length])
+        if num_intervals < 10:
+            return mpmath.quadsubdiv(integrand, [lower_bound, r_reflection, rmax, self.Morse_f.box_length], maxdegree=10)
         else:
-            result = mpmath.quadsubdiv(integrand, [lower_bound, r_reflection])
-            intervals_mid = np.linspace(r_reflection, rmax, (vi+2)*num_intervals+1)
-            result += mpmath.quadsubdiv(integrand, intervals_mid)
+            result = mpmath.quadsubdiv(integrand, [lower_bound, r_reflection], maxdegree=10)
+            factor = (max(1, vi + 4 - self.Morse_i.vmax))**2
+            intervals_mid = np.linspace(r_reflection, rmax, factor*num_intervals+1)
+            result += mpmath.quadsubdiv(integrand, intervals_mid, maxdegree=10)
             intervals_high = np.linspace(rmax, self.Morse_f.box_length, num_intervals+1)
-            result += mpmath.quadsubdiv(integrand, intervals_high)
+            result += mpmath.quadsubdiv(integrand, intervals_high, maxdegree=10)
             return result
 
     def FC_continuum(self, vi, E, lower_bound=None, norm=None):
