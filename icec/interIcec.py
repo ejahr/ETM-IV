@@ -95,7 +95,7 @@ class Morse:
         min_index = np.nanargmin(psi_samples)
         return R_samples[min_index]
 
-    def estimate_oscillation(self, E, d=10):
+    def estimate_oscillation(self, E, d=5):
         # particle in a box: E_n = n^2*pi^2/(2*m*L^2)
         n = self.box_length * np.sqrt(2 * self.mu * E) / np.pi
         return round(n / d)  # divide by d to not have just one period per interval
