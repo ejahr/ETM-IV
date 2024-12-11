@@ -598,29 +598,21 @@ class OverlapInterICEC(InterICEC):
         else:
             if self.gaussian_type == "s":
                 prefactor = (
-                    4
-                    * np.pi
-                    * 8
-                    * (self.a_A * self.a_B / (self.a_A**2 + self.a_B**2)) ** 3
+                    4 * np.pi * 8 * (self.a_A * self.a_B / (self.a_A**2 + self.a_B**2)) ** 3
                 )
             elif self.gaussian_type == "pz":
                 prefactor = (
-                    4
-                    * np.pi
-                    * 16
-                    * self.a_A**3
-                    * (self.a_B / (self.a_A**2 + self.a_B**2)) ** 5
+                    4 * np.pi * 16 * self.a_A**3 * (self.a_B / (self.a_A**2 + self.a_B**2)) ** 5
                 )
             else:
                 print("Invalid gaussian type")
                 return None
             C = self.C * mpmath.exp(-mpmath.fabs(electronE - electronE_f) / self.d)
             sum_l = sum(
-                (2 * l + 1)
-                * self.FC_continuum(vi, E, electronE, electronE_f, l, lower_bound, norm)
+                (2 * l + 1) * self.FC_continuum(vi, E, electronE, electronE_f, l, lower_bound, norm)
                 for l in range(self.lmax + 1)
             )
-            xs = prefactor / electronE ** (3 / 2) / mpmath.sqrt(electronE_f) * sum_l * C
+            xs = prefactor / electronE**(3 / 2) / mpmath.sqrt(electronE_f) * sum_l * C
             # xs = prefactor / electronE**(3/2) * sum_l * C # TEST
             return np.abs(xs)
 
