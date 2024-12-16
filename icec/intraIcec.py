@@ -5,22 +5,23 @@ from crosssection.icec.constants import *
 
 class IntraICEC:
     """ 
-    - EA: Electron affinity of A (ev)
-    - IP: Ionization potential of B (eV)
-    - PI_xs_A: Function, Fit for Photoionization cross section of A- (eV -> Mb)
-    - PI_xs_B: Function, Fit for Photoionization cross section of B (eV -> Mb)
-
-    - thresholdEnergy: threshold energy for ICEC (Hartree, a.u.)
+    - degeneracyFactor : g_{A^-} / g_A
+    - IP: Ionization potential (eV)
+    - PI_xs: Function, Fit for Photoionization cross section (eV -> Mb)
     - prefactor: terms that are neither energy nor R dependent 
     """
-    def __init__(self, degeneracy_i, IP_A, IP_B, PI_xs_A, PI_xs_B) :
-        self.degeneracy_i = degeneracy_i
-        self.IP_A = IP_A * EV2HARTREE
+    def __init__(self, degeneracyFactor , IP_A, IP_B, PI_xs_A, PI_xs_B) :
+        self.degeneracyFactor = degeneracyFactor 
+        self.IP_A = IP_A * EV2HARTREE # assumption: adiabatic ionization energy
         self.IP_B = IP_B * EV2HARTREE
-        self.PI_xs_A = PI_xs_A
+
+        self.PI_xs_A = PI_xs_A # 3 dim vector: [vi,vf,E,xs]
         self.PI_xs_B = PI_xs_B
         
-        self.thresholdEnergy = max(0, self.IP_B - self.IP_A)
+        self.max_vf_A = 0
+        self.max_vf_B = 0
+    
+    
         self.prefactor = (3 * c**2) / (8 * np.pi)
 
     def make_energy_grid(self, minEnergy=None, maxEnergy=10, resolution=100, geometric=True): 
@@ -45,60 +46,60 @@ class IntraICEC:
         """
         self.rGrid = np.linspace(Rmin, Rmax, resolution)
         
-    def threshold_energy():
-        E_threshold_ICEC = np.array([])
 
-        if A_dimer == True and B_dimer == False:
-            for EA in A_EA:
-                new_element = B_IP - EA
-                E_threshold_ICEC = np.append(E_threshold_ICEC, new_element)
-            E_threshold_ICEC[E_threshold_ICEC < 0] = 0
-        else:
-            E_threshold_ICEC = B_IP - A_EA
-        if B_dimer == True:
-            E_threshold_ICEC[E_threshold_ICEC < 0] = 0
-        else:
-            if E_threshold_ICEC < 0:
-                E_threshold_ICEC = 0
-
-    def interpolate_PI_xs(self, electronE, PI):
+    def interpolate_PI_xs(self, hbarOmega, PI):
         PI_energy, PI_xs = PI
-        return np.interp(electronE + self.A_EA, PI_energy, PI_xs)
-
+        return np.interp(hbarOmega, PI_energy, PI_xs)
+    
+    
+    def PI_xs(self, v, vp, hbarOmega):
+        return 0
+        
+    
+    def energy_relation(self, electronE, v_A, v_Ap, v_B, v_Bp):
+        vib_energy = (Morse_Ap.energy(v_Ap) - Morse_Ap.energy(0)) - (Morse_A.energy(v_A) - Morse_A.energy(0))
+        transition_A = self.IP_A if v_A is None else self.IP_A + vib_energy
+        
+        vib_energy = (Morse_Bp.energy(v_Bp) - Morse_Bp.energy(0)) - (Morse_B.energy(v_B) - Morse_B.energy(0))
+        transition_B = self.IP_B if v_Bp is None else self.IP_B - vib_energy
+        
+        hbarOmega = electronE + transition_A
+        electronE_f = hbarOmega - transition_B
+        
+        return hbarOmega, electronE_f
+    
+    
     # ----- CROSS SECTION -----    
-    def xs(self, electronE, R):
+    def xs(self, electronE, R, v_A, v_Ap, v_B, v_Bp):
         """ Calculate cross section (a.u.) of ICEC for some kinetic energy and R.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         - R: internuclear distance: (Bohr, a.u.)
+        - v_A+ -> v_A (v_A -> v_A+ Photoionization)
+        - v_B -> v_B+
         """   
-        if electronE < self.thresholdEnergy: 
+        hbarOmega, electronE_f = self.energy_relation(electronE, v_A, v_Ap, v_B, v_Bp)
+        
+        if electronE_f <= 0: 
             return 0
         else: 
-            hbarOmega = electronE + self.IP_A
-            PI_xs_A = self.PI_xs_A(hbarOmega*HARTREE2EV)*MB2AU
-            PI_xs_B = self.PI_xs_B(hbarOmega*HARTREE2EV)*MB2AU
+            PI_xs_A = PI_xs_A(v_A, v_Ap, hbarOmega*HARTREE2EV)*MB2AU
+            PI_xs_B = PI_xs_B(v_B,v_Bp, hbarOmega*HARTREE2EV)*MB2AU
             return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B / (electronE * hbarOmega**2 * R**6)
-        
 
-    def xs(self, electronE, R, vf_A, vf_B):
-        omega = electronE + IP_A
-        PI_xs_A = self.PI_xs_A(vf, vi, E)
-        PI_xs_B =  self.PI_xs_B(vi, vf)
-        return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B / (electronE * omega**2 * R ** 6)
 
-    def xs_energy(self, R, vf_A, vf_B):
+    def xs_energy(self, R, v_A=None, v_Ap=0, v_B=0, v_Bp=None):
         """ Calculate cross section (Mb) of ICEC for given range of kinetic energies.
         - R: internuclear distance: (Bohr, a.u.)
         """        
         if not hasattr(self, 'energyGrid'):
             self.make_energy_grid()
         xs = np.array([
-            self.xs(energy, R)
+            self.xs(energy, R, v_A, v_Ap, v_B, v_Bp)
             for energy in self.energyGrid
         ]) 
         return xs * AU2MB
 
-    def xs_R(self, electronE, vf_A, vf_B):
+    def xs_R(self, electronE, v_A=None, v_Ap=0, v_B=0, v_Bp=None):
         """ Calculate cross section (Mb) of ICEC for given range of interatomic distances.
         - electronE : energy of incoming electron (eV) 
         - R : interatomic distance (Bohr, a.u.)
@@ -107,8 +108,8 @@ class IntraICEC:
         if not hasattr(self, 'rGrid'):
             self.make_R_grid()
         xs = np.array([
-            self.xs(electronE, R)
-            for R in self.rGrid
+            self.xs(electronE, r, v_A, v_Ap, v_B, v_Bp)
+            for r in self.rGrid
         ])
         return xs * AU2MB
 
