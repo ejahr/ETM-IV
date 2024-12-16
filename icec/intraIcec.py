@@ -17,10 +17,6 @@ class IntraICEC:
 
         self.PI_xs_A = PI_xs_A # 3 dim vector: [vi,vf,E,xs]
         self.PI_xs_B = PI_xs_B
-        
-        self.max_vf_A = 0
-        self.max_vf_B = 0
-    
     
         self.prefactor = (3 * c**2) / (8 * np.pi)
 
@@ -53,15 +49,17 @@ class IntraICEC:
     
     
     def PI_xs(self, v, vp, hbarOmega):
+        # TODO
         return 0
         
     
     def energy_relation(self, electronE, v_A, v_Ap, v_B, v_Bp):
-        vib_energy = (Morse_Ap.energy(v_Ap) - Morse_Ap.energy(0)) - (Morse_A.energy(v_A) - Morse_A.energy(0))
-        transition_A = self.IP_A if v_A is None else self.IP_A + vib_energy
+        # TODO
+        vib_energy_A = 0 if v_A is None else (Morse_Ap.energy(v_Ap) - Morse_Ap.energy(0)) - (Morse_A.energy(v_A) - Morse_A.energy(0))
+        transition_A = self.IP_A + vib_energy_A
         
-        vib_energy = (Morse_Bp.energy(v_Bp) - Morse_Bp.energy(0)) - (Morse_B.energy(v_B) - Morse_B.energy(0))
-        transition_B = self.IP_B if v_Bp is None else self.IP_B - vib_energy
+        vib_energy_B = 0 if v_Bp is None else (Morse_Bp.energy(v_Bp) - Morse_Bp.energy(0)) - (Morse_B.energy(v_B) - Morse_B.energy(0))
+        transition_B = self.IP_B - vib_energy_B
         
         hbarOmega = electronE + transition_A
         electronE_f = hbarOmega - transition_B
@@ -82,6 +80,7 @@ class IntraICEC:
         if electronE_f <= 0: 
             return 0
         else: 
+            # TODO
             PI_xs_A = PI_xs_A(v_A, v_Ap, hbarOmega*HARTREE2EV)*MB2AU
             PI_xs_B = PI_xs_B(v_B,v_Bp, hbarOmega*HARTREE2EV)*MB2AU
             return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B / (electronE * hbarOmega**2 * R**6)
