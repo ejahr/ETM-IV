@@ -381,8 +381,8 @@ class InterICEC:
 
     def xs_to_continuum(self, vi, diss_energies, electronE):
         """Cross section [a.u.] for vi -> continuum states.
+        - diss_energies [Hartree] : energies of all possible dissociative states (in a box)
         - electronE [Hartree] : kinetic energy of incoming electron
-        - modifiedFC : |<psi_vf|r^-3|psi_E>|^2
         """
         omegaA = electronE + self.IP_A
         max_energy = omegaA - self.IP_B + self.Morse_i.E(vi)
@@ -553,7 +553,7 @@ class OverlapInterICEC(InterICEC):
     def xs_vivf(self, vi, vf):
         """Cross section [Mb] of the overlap contribution for vi -> vf over range of electron energies."""
         xs_array = np.array(
-            [self.xs(vi, vf, energy) for energy in self.energyGrid]
+            [self.xs_bb(vi, vf, energy) for energy in self.energyGrid]
         )
         return xs_array * AU2MB
 
