@@ -128,7 +128,8 @@ class ICEC:
             PI_xs = self.PI_xs_A(hbarOmega*HARTREE2EV)*MB2AU
             xs = self.degeneracyFactor * hbarOmega**2 / (2*electronE*c**2) * PI_xs
             PR_xs = np.append(PR_xs, [xs * AU2MB])
-        ax.plot(self.energyGrid*HARTREE2EV, PR_xs, **kwargs)
+        mask = PR_xs>0
+        ax.plot(self.energyGrid[mask]*HARTREE2EV, PR_xs[mask], **kwargs)
         
         
 class OverlapICEC(ICEC):
