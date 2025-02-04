@@ -377,7 +377,7 @@ class InterICEC:
                 * modifiedFC
                 / (electronE * omegaA * omegaB)
             )
-            return np.abs(xs)
+            return float(xs)
 
     def xs_to_continuum(self, vi, diss_energies, electronE):
         """Cross section [a.u.] for vi -> continuum states.
