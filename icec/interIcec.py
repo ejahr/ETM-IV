@@ -343,11 +343,11 @@ class InterICEC:
         
     def spectrum_bc_FC(self, electronE, vi, diss_energies):
         electronE *= EV2HARTREE
-        density_of_states = 1/(diss_energies[1:-1] - diss_energies[0:-2])
-        density_of_states.append(density_of_states[-1])
+        density_of_states = self.get_density_of_states(diss_energies)
         with Pool() as pool:
             result = pool.starmap(
-                self.function_for_FC, zip(repeat(vi), diss_energies, repeat(electronE), density_of_states)
+                self.function_for_FC, 
+                zip(repeat(vi), diss_energies, repeat(electronE), density_of_states)
             )
         return np.array(result)
 
