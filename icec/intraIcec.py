@@ -106,7 +106,25 @@ class IntraICEC:
     
         self.prefactor = (3 * c**2) / (8 * np.pi)
 
-    def make_energy_grid(self, minEnergy=None, maxEnergy=10, resolution=100, geometric=True): 
+    def define_Morse_B(self, mu, we, req, De):
+        """Morse potential for the initial vibrational mode of the system.
+        - mu: reduced mass (proton mass)
+        - we: Morse parameter (a.u.)
+        - req: Equilibrium bond distance (a.u.)
+        - De: Dissociation energy (a.u.)
+        """
+        self.Morse_B = Morse(mu, we, req, De)
+
+    def define_Morse_Bp(self, mu, we, req, De):
+        """Morse potential for the initial vibrational mode of the system.
+        - mu: reduced mass (proton mass)
+        - we: Morse parameter (a.u.)
+        - req: Equilibrium bond distance (a.u.)
+        - De: Dissociation energy (a.u.)
+        """
+        self.Morse_Bp = Morse(mu, we, req, De)
+
+    def make_energy_grid(self, minEnergy=None, maxEnergy=10*EV2HARTREE, resolution=100, geometric=True): 
         """ Make a suitable grid of incoming electron energies.
         - Energy (eV)
         - resolution : number of grid points
