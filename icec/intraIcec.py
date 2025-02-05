@@ -96,14 +96,10 @@ class IntraICEC:
     - PI_xs: Function, Fit for Photoionization cross section (eV -> Mb)
     - prefactor: terms that are neither energy nor R dependent 
     """
-    def __init__(self, degeneracyFactor , IP_A, IP_B, PI_xs_A, PI_xs_B) :
-        self.degeneracyFactor = degeneracyFactor 
-        self.IP_A = IP_A * EV2HARTREE # assumption: adiabatic ionization energy
-        self.IP_B = IP_B * EV2HARTREE
-
-        self.PI_xs_A = PI_xs_A # 3 dim vector: [vi,vf,E,xs]
-        self.PI_xs_B = PI_xs_B
-    
+    def __init__(self, degeneracyFactor, IP_A, IP_B) :
+        self.IP_A = IP_A # assumption: adiabatic ionization energy
+        self.IP_B = IP_B 
+        self.degeneracyFactor = degeneracyFactor
         self.prefactor = (3 * c**2) / (8 * np.pi)
 
     def define_Morse_B(self, mu, we, req, De):
@@ -146,11 +142,19 @@ class IntraICEC:
         """
         self.rGrid = np.linspace(Rmin, Rmax, resolution)
         
-
-    def interpolate_PI_xs(self, hbarOmega, PI):
-        PI_energy, PI_xs = PI
+    def define_PI_xs_A(self, PI):
+        self.PI_xs_A = PI
+    
+    def interpolate_PI_xs_A(self, hbarOmega):
+        PI_energy, PI_xs = self.PI_xs_A
         return np.interp(hbarOmega, PI_energy, PI_xs)
     
+    def define_PI_xs_B(self, PI):
+        self.PI_xs_B = PI
+    
+    def interpolate_PI_xs_B(self, hbarOmega):
+        PI_energy, PI_xs = self.PI_xs_B
+        return np.interp(hbarOmega, PI_energy, PI_xs)
     
     def PI_xs(self, v, vp, hbarOmega):
         # TODO
@@ -185,8 +189,8 @@ class IntraICEC:
             return 0
         else: 
             # TODO
-            PI_xs_A = PI_xs_A(v_A, v_Ap, hbarOmega*HARTREE2EV)*MB2AU
-            PI_xs_B = PI_xs_B(v_B,v_Bp, hbarOmega*HARTREE2EV)*MB2AU
+            PI_xs_A = self.interpolate_PI_xs_A(hbarOmega)
+            PI_xs_B = self.interpolate_PI_xs_B(hbarOmega)
             return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B / (electronE * hbarOmega**2 * R**6)
 
 
