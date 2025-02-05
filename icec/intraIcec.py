@@ -1,6 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import copy
+import scipy as sp
 from crosssection.icec.constants import *
 
 class IntraICEC:
