@@ -122,14 +122,11 @@ class IntraICEC:
 
     def make_energy_grid(self, minEnergy=None, maxEnergy=10*EV2HARTREE, resolution=100, geometric=True): 
         """ Make a suitable grid of incoming electron energies.
-        - Energy (eV)
+        - Energy (a.u.)
         - resolution : number of grid points
         """
-        maxEnergy = maxEnergy * EV2HARTREE
         if minEnergy is None:
-            minEnergy = self.thresholdEnergy
-        else:
-            minEnergy = minEnergy * EV2HARTREE        
+            minEnergy = self.thresholdEnergy    
         if geometric:
             self.energyGrid = np.geomspace(minEnergy, maxEnergy, resolution)
         else:
@@ -160,7 +157,6 @@ class IntraICEC:
         # TODO
         return 0
         
-    
     def energy_relation(self, electronE, v_A, v_Ap, v_B, v_Bp):
         # TODO
         vib_energy_A = 0 if v_A is None else (self.Morse_Ap.energy(v_Ap) - self.Morse_Ap.energy(0)) - (self.Morse_A.energy(v_A) - self.Morse_A.energy(0))
@@ -176,7 +172,7 @@ class IntraICEC:
     
     
     # ----- CROSS SECTION -----    
-    def xs(self, electronE, R, v_A, v_Ap, v_B, v_Bp):
+    def xs(self, electronE, R, v_A=None, v_Ap=0, v_B=0, v_Bp=None):
         """ Calculate cross section (a.u.) of ICEC for some kinetic energy and R.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         - R: internuclear distance: (Bohr, a.u.)
