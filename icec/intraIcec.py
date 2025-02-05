@@ -159,10 +159,10 @@ class IntraICEC:
     
     def energy_relation(self, electronE, v_A, v_Ap, v_B, v_Bp):
         # TODO
-        vib_energy_A = 0 if v_A is None else (Morse_Ap.energy(v_Ap) - Morse_Ap.energy(0)) - (Morse_A.energy(v_A) - Morse_A.energy(0))
+        vib_energy_A = 0 if v_A is None else (self.Morse_Ap.energy(v_Ap) - self.Morse_Ap.energy(0)) - (self.Morse_A.energy(v_A) - self.Morse_A.energy(0))
         transition_A = self.IP_A + vib_energy_A
         
-        vib_energy_B = 0 if v_Bp is None else (Morse_Bp.energy(v_Bp) - Morse_Bp.energy(0)) - (Morse_B.energy(v_B) - Morse_B.energy(0))
+        vib_energy_B = 0 if v_Bp is None else (self.Morse_Bp.energy(v_Bp) - self.Morse_Bp.energy(0)) - (self.Morse_B.energy(v_B) - self.Morse_B.energy(0))
         transition_B = self.IP_B - vib_energy_B
         
         hbarOmega = electronE + transition_A
