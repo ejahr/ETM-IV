@@ -2,6 +2,93 @@ import numpy as np
 import scipy as sp
 from crosssection.icec.constants import *
 
+
+class Morse:
+    """Initialize the Morse model for a diatomic molecule in atomic units (hbar=1, me=1, hartree energy=1).
+    Adapted from https://scipython.com/blog/the-morse-oscillator and https://liu-group.github.io/Morse-potential
+    Input arguments
+    - mu: reduced mass (electron mass)
+    - we: Morse parameter (cm-1)
+    - req: Equilibrium bond distance (Angstrom)
+    - De: Dissociation energy (cm-1)
+    - E0: Equilibrium energy E(req) (cm-1)
+    Class parameters
+    - alpha: Morse parameter
+    - lam: Morse parameter (not to be confused with lambda function)
+    - vmax: maximum vibrational quantum number
+    - rmin: r where V(r) = De on repulsive edge
+    - rmax: r where V(r) = f*De, f<1
+    """
+
+    def __init__(self, mu, we, req, De, E0=0):
+        self.mu = mu  # in electron mass
+        self.we = we 
+        self.req = req 
+        self.De = De 
+        self.E0 = E0 
+
+        self.alpha = self.we * np.sqrt(self.mu / 2 / self.De)
+        self.lam = np.sqrt(2 * self.mu * self.De) / self.alpha
+        self.z0 = 2 * self.lam * np.exp(self.alpha * self.req)
+        self.vmax = int(self.lam - 0.5)
+
+        self.rmin = self.req - np.log(2) / self.alpha
+        f = 0.99
+        self.rmax = self.req - np.log(1 - f) / self.alpha
+
+    def V(self, r):
+        """Morse potential
+        - r : interatomic distance (Bohr, a.u.)
+        """
+        return self.De * (1 - np.exp(-self.alpha * (r - self.req))) ** 2 - self.De
+
+    def psi(self, v, r):
+        """v-th eigenstate of the Morse potential
+        - r : interatomic distance (Bohr, a.u.)
+        """
+        z = self.z0 * sp.exp(-self.alpha * r)
+        N = sp.sqrt(
+            (2 * self.lam - 2 * v - 1)
+            * sp.factorial(v)
+            * self.alpha
+            / sp.gamma(2 * self.lam - v)
+        )
+        return (
+            N
+            * z ** (self.lam - v - 0.5)
+            * sp.exp(-z / 2)
+            * sp.laguerre(v, 2 * self.lam - 2 * v - 1, z)
+        )
+
+    def E(self, v):
+        """Energy [Hartree] of the v-th (bound) Morse state. E_bound < 0"""
+        vphalf = v + 0.5
+        return self.we * vphalf - (self.we * vphalf) ** 2 / (4 * self.De) - self.De
+
+    def intersection_V(self, E):
+        arg = (-self.De + np.sqrt(self.De**2 + self.De * E)) / E
+        return self.req + np.log(arg) / self.alpha
+
+    def make_rgrid(self, resolution=1000, rmin=None, rmax=None):
+        """Make grid of interatomic distances r (Bohr, a.u.)
+        - resolution : number of grid points
+        """
+        if rmin is None:
+            rmin = self.rmin
+        if rmax is None:
+            rmax = self.rmax
+        self.r = np.linspace(rmin, rmax, resolution)
+        return self.r
+
+    def plot_V(self, ax, **kwargs):
+        if not hasattr(self, "r"):
+            self.make_rgrid()
+        V = self.V(self.r)
+        ax.set_xlabel(r"$R$ [a.u.]")
+        ax.set_ylabel(r"$E$ [a.u.]")
+        ax.plot(self.r, V, **kwargs)
+
+
 class IntraICEC:
     """ 
     - degeneracyFactor : g_{A^-} / g_A
