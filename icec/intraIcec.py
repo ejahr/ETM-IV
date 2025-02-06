@@ -136,30 +136,15 @@ class IntraICEC:
         - resolution : number of grid points
         """
         self.rGrid = np.linspace(Rmin, Rmax, resolution)
-        
-    def define_PI_xs_A(self, PI):
-        self.PI_xs_A = PI
     
-    def interpolate_PI_xs_A(self, hbarOmega):
-        PI_energy, PI_xs = self.PI_xs_A
-        return np.interp(hbarOmega, PI_energy, PI_xs)
+    def PI_xs_B(self, vi, vf, hbarOmega):
+        filename = self.file_PI_xs_B + f"{vi}_{vf}.txt"
+        data = np.loadtxt(filename)
+        energies, xs = data[:, 0]*EV2HARTREE, data[:, 1]*MB2AU
+        interp_func = sp.interpolate.interp1d(energies, xs, kind='linear', fill_value="extrapolate")
+        return interp_func(hbarOmega)
     
-    def define_PI_xs_B(self, PI):
-        self.PI_xs_B = PI
-    
-    def interpolate_PI_xs_B(self, hbarOmega):
-        PI_energy, PI_xs = self.PI_xs_B
-        return np.interp(hbarOmega, PI_energy, PI_xs)
-    
-    def PI_xs(self, v, vp, hbarOmega):
-        # TODO
-        return 0
-        
-    def energy_relation(self, electronE, v_A, v_Ap, v_B, v_Bp):
-        # TODO
-        vib_energy_A = 0 if v_A is None else (self.Morse_Ap.energy(v_Ap) - self.Morse_Ap.energy(0)) - (self.Morse_A.energy(v_A) - self.Morse_A.energy(0))
-        transition_A = self.IP_A + vib_energy_A
-        
+    def energy_relation(self, electronE, v_B, v_Bp):
         vib_energy_B = 0 if v_Bp is None else (self.Morse_Bp.energy(v_Bp) - self.Morse_Bp.energy(0)) - (self.Morse_B.energy(v_B) - self.Morse_B.energy(0))
         transition_B = self.IP_B - vib_energy_B
         
