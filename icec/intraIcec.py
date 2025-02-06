@@ -130,7 +130,7 @@ class IntraICEC:
         else:
             self.energyGrid = np.linspace(minEnergy, maxEnergy, resolution)
 
-    def make_R_grid(self, Rmin=2, Rmax=10, resolution=100): 
+    def make_R_grid(self, Rmin=2*ANGSTROM2BOHR, Rmax=10*ANGSTROM2BOHR, resolution=100): 
         """ Make a suitable grid of interatomic distances.
         - R (Bohr, a.u.)
         - resolution : number of grid points
