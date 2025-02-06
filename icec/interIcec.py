@@ -270,7 +270,8 @@ class InterICEC:
             result = pool.starmap(
                 self.xs_vivf, zip(repeat(vi), range(self.Morse_f.vmax + 1))
             )
-        xs_array = sum(list(result))
+        # Element-wise summation sum(list_of_arrays), see https://stackoverflow.com/questions/66111665/numpy-element-wise-addition-with-multiple-arrays
+        xs_array = sum(list(result)) 
         return xs_array
 
     def xs_tot(self):
