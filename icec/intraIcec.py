@@ -187,10 +187,8 @@ class IntraICEC:
         """ Calculate cross section (Mb) of ICEC for given range of kinetic energies.
         - R: internuclear distance: (Bohr, a.u.)
         """        
-        if not hasattr(self, 'energyGrid'):
-            self.make_energy_grid()
         xs = np.array([
-            self.xs(energy, R, v_A, v_Ap, v_B, v_Bp)
+            self.xs(energy, R, v_B, v_Bp)
             for energy in self.energyGrid
         ]) 
         return xs * AU2MB
@@ -249,7 +247,7 @@ class IntraICEC:
         PR_xs = np.array([])
         for electronE in self.energyGrid:
             hbarOmega = electronE + self.IP_A
-            PI_xs = self.PI_xs_A(hbarOmega*HARTREE2EV)*MB2AU
+            PI_xs = self.PI_xs_A(hbarOmega)
             xs = self.degeneracyFactor * hbarOmega**2 / (2*electronE*c**2) * PI_xs
             PR_xs = np.append(PR_xs, [xs * AU2MB])
         ax.plot(self.energyGrid*HARTREE2EV, PR_xs, **kwargs)
