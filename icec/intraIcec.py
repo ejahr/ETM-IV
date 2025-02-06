@@ -120,13 +120,11 @@ class IntraICEC:
         """
         self.Morse_Bp = Morse(mu, we, req, De)
 
-    def make_energy_grid(self, minEnergy=None, maxEnergy=10*EV2HARTREE, resolution=100, geometric=True): 
+    def make_energy_grid(self, minEnergy=0.01*EV2HARTREE, maxEnergy=10*EV2HARTREE, resolution=100, geometric=True): 
         """ Make a suitable grid of incoming electron energies.
         - Energy (a.u.)
         - resolution : number of grid points
         """
-        if minEnergy is None:
-            minEnergy = self.thresholdEnergy    
         if geometric:
             self.energyGrid = np.geomspace(minEnergy, maxEnergy, resolution)
         else:
