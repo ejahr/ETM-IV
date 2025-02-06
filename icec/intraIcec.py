@@ -171,8 +171,10 @@ class IntraICEC:
         - v_A+ -> v_A (v_A -> v_A+ Photoionization)
         - v_B -> v_B+
         """   
-        hbarOmega, electronE_f = self.energy_relation(electronE, v_A, v_Ap, v_B, v_Bp)
-        
+        if hasattr(self, 'vib_diff_to_ground_B'):
+            hbarOmega, electronE_f = self.energy_relation_vib(electronE, v_B, v_Bp)
+        else:
+            hbarOmega, electronE_f = self.energy_relation(electronE, v_B, v_Bp)
         if electronE_f <= 0: 
             return 0
         else: 
