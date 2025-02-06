@@ -153,7 +153,16 @@ class IntraICEC:
         
         return hbarOmega, electronE_f
     
-    
+    def input_vib_spacing_B(self, vib_spacing_B, vib_spacing_Bp):
+        self.vib_diff_to_ground_B = np.cumsum(vib_spacing_B)
+        self.vib_diff_to_ground_Bp = np.cumsum(vib_spacing_Bp)
+
+    def energy_relation_vib(self, electronE, v_B, v_Bp):
+        hbarOmega = electronE + self.IP_A
+        transition_B = self.IP_B + self.vib_diff_to_ground_Bp[v_Bp] - self.vib_diff_to_ground_B[v_B]
+        electronE_f = hbarOmega - transition_B
+        return hbarOmega, electronE_f
+
     # ----- CROSS SECTION -----    
     def xs(self, electronE, R, v_A=None, v_Ap=0, v_B=0, v_Bp=None):
         """ Calculate cross section (a.u.) of ICEC for some kinetic energy and R.
