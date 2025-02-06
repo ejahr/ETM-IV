@@ -179,8 +179,8 @@ class IntraICEC:
             return 0
         else: 
             # TODO
-            PI_xs_A = self.interpolate_PI_xs_A(hbarOmega)
-            PI_xs_B = self.interpolate_PI_xs_B(hbarOmega)
+            PI_xs_A = self.PI_xs_A(hbarOmega)
+            PI_xs_B = self.PI_xs_B(v_B, v_Bp, hbarOmega)
             return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B / (electronE * hbarOmega**2 * R**6)
 
     def xs_vB_vBp(self, R, v_B=0, v_Bp=0):
