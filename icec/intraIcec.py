@@ -96,10 +96,12 @@ class IntraICEC:
     - PI_xs: Function, Fit for Photoionization cross section (eV -> Mb)
     - prefactor: terms that are neither energy nor R dependent 
     """
-    def __init__(self, degeneracyFactor, IP_A, IP_B) :
-        self.IP_A = IP_A # assumption: adiabatic ionization energy
-        self.IP_B = IP_B 
-        self.degeneracyFactor = degeneracyFactor
+    def __init__(self, degeneracyFactor: float, IP_A: float, IP_B: float, PI_xs_A: Callable, file_PI_xs_B: str) :
+        self.degeneracyFactor = degeneracyFactor # g_A / g_A+
+        self.IP_A = IP_A 
+        self.IP_B = IP_B # assumption: adiabatic ionization energy
+        self.PI_xs_A = PI_xs_A
+        self.file_PI_xs_B = file_PI_xs_B
         self.prefactor = (3 * c**2) / (8 * np.pi)
 
     def define_Morse_B(self, mu, we, req, De):
