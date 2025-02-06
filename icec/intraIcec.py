@@ -148,7 +148,7 @@ class IntraICEC:
         vib_energy_B = 0 if v_Bp is None else (self.Morse_Bp.energy(v_Bp) - self.Morse_Bp.energy(0)) - (self.Morse_B.energy(v_B) - self.Morse_B.energy(0))
         transition_B = self.IP_B - vib_energy_B
         
-        hbarOmega = electronE + transition_A
+        hbarOmega = electronE + self.IP_A 
         electronE_f = hbarOmega - transition_B
         
         return hbarOmega, electronE_f
@@ -164,7 +164,7 @@ class IntraICEC:
         return hbarOmega, electronE_f
 
     # ----- CROSS SECTION -----    
-    def xs(self, electronE, R, v_A=None, v_Ap=0, v_B=0, v_Bp=None):
+    def xs(self, electronE, R, v_B=0, v_Bp=0):
         """ Calculate cross section (a.u.) of ICEC for some kinetic energy and R.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         - R: internuclear distance: (Bohr, a.u.)
@@ -181,8 +181,7 @@ class IntraICEC:
             PI_xs_B = self.interpolate_PI_xs_B(hbarOmega)
             return self.prefactor * self.degeneracyFactor * PI_xs_A * PI_xs_B / (electronE * hbarOmega**2 * R**6)
 
-
-    def xs_energy(self, R, v_A=None, v_Ap=0, v_B=0, v_Bp=None):
+    def xs_vB_vBp(self, R, v_B=0, v_Bp=0):
         """ Calculate cross section (Mb) of ICEC for given range of kinetic energies.
         - R: internuclear distance: (Bohr, a.u.)
         """        
@@ -195,28 +194,28 @@ class IntraICEC:
         return xs * AU2MB
     
     
-    def spectrum(self, electronE, v_A = None, v_Ap=0, v_B=0):
+    def spectrum(self, electronE, R, v_B=0, v_Bp_max=0):
         """ Cross sections [Mb] for vi -> bound states given some electron energy.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
         """
         spectrum = []
-        for v_Bp in range(self.Morse_Bp.vmax + 1):
-            hbarOmega, electronE_f = self.energy_relation(electronE, v_A, v_Ap, v_B, v_Bp)
+        for v_Bp in range(v_Bp_max+1):
+            hbarOmega, electronE_f = self.energy_relation_vib(electronE, v_B, v_Bp)
             if electronE_f >= 0:
-                xs = self.xs(electronE, v_A, v_Ap, v_B, v_Bp)
+                xs = self.xs(electronE, R, v_B, v_Bp)
                 spectrum.append([electronE_f * HARTREE2EV, xs * AU2MB, v_Bp])
         return np.array(spectrum)
 
-    def xs_R(self, electronE, v_A=None, v_Ap=0, v_B=0, v_Bp=None):
+    def xs_R(self, electronE, v_B=0, v_Bp=None):
         """ Calculate cross section (Mb) of ICEC for given range of interatomic distances.
         - electronE : energy of incoming electron (eV) 
         - R : interatomic distance (Bohr, a.u.)
         """
-        electronE = electronE * EV2HARTREE
+        electronE = electronE
         if not hasattr(self, 'rGrid'):
             self.make_R_grid()
         xs = np.array([
-            self.xs(electronE, r, v_A, v_Ap, v_B, v_Bp)
+            self.xs(electronE, r, v_B, v_Bp)
             for r in self.rGrid
         ])
         return xs * AU2MB
