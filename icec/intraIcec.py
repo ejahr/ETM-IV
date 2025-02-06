@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 from crosssection.icec.constants import *
-
+from typing import Callable
 
 class Morse:
     """Initialize the Morse model for a diatomic molecule in atomic units (hbar=1, me=1, hartree energy=1).
@@ -212,6 +212,7 @@ class IntraICEC:
             if electronE_f >= 0:
                 xs = self.xs(electronE, R, v_B, v_Bp)
                 spectrum.append([electronE_f * HARTREE2EV, xs * AU2MB, v_Bp])
+        print(spectrum)
         return np.array(spectrum)
 
     def xs_R(self, electronE, v_B=0, v_Bp=None):
