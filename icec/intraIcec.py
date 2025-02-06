@@ -193,6 +193,12 @@ class IntraICEC:
         ]) 
         return xs * AU2MB
     
+    def xs_vB(self, R, vB, vBp_max):
+        """ Cross section [Mb] for vi -> bound states over range of electron energies.
+        """
+        # Element-wise summation sum(list_of_arrays)
+        xs_array = sum(self.xs_vB_vBp(R, vB, vBp) for vBp in range(vBp_max + 1))
+        return xs_array
     
     def spectrum(self, electronE, R, v_B=0, v_Bp_max=0):
         """ Cross sections [Mb] for vi -> bound states given some electron energy.
