@@ -63,6 +63,11 @@ class ICEC:
         - resolution : number of grid points
         """
         self.rGrid = np.linspace(Rmin, Rmax, resolution)
+        
+    def energy_relation(self, electronE):
+        hbarOmega = electronE + self.IP_A
+        electronEf = hbarOmega - self.IP_B 
+        return hbarOmega, electronEf
 
     # ----- CROSS SECTION -----    
     def xs(self, electronE, R):
