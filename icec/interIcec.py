@@ -48,6 +48,9 @@ class Morse:
         - r : interatomic distance (Bohr, a.u.)
         """
         return self.De * (1 - np.exp(-self.alpha * (r - self.req))) ** 2 - self.De
+    
+    def dVdr(self, r):
+        return 2 * self.alpha * self.De * np.exp(-self.alpha * (r - self.req)) * (1 - np.exp(-self.alpha * (r - self.req))) 
 
     def psi(self, v, r):
         """v-th eigenstate of the Morse potential
