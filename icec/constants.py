@@ -1,3 +1,5 @@
+import numpy as np
+
 # physical constants in a.u.
 c = 137
 
@@ -23,3 +25,10 @@ PM2BOHR = 1e-12 * M2BOHR
 MB2M2 = 1e-22
 MB2AU = MB2M2 * M2BOHR**2
 AU2MB = BOHR2M**2 / MB2M2
+
+
+def angstrom2hartree(wavelength):
+    # E = 2 * pi * hbar * c / lambda
+    wavelength *= ANGSTROM2BOHR
+    energy = 2 * np.pi * c / wavelength
+    return energy
