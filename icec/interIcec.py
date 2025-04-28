@@ -23,8 +23,6 @@ class Morse:
     - alpha: Morse parameter
     - lam: Morse parameter (not to be confused with lambda function)
     - vmax: maximum vibrational quantum number
-    - rmin: r where V(r) = De on repulsive edge
-    - rmax: r where V(r) = f*De, f<1
     """
 
     def __init__(self, mu, we, req, De, E0=0):
@@ -39,12 +37,8 @@ class Morse:
         self.z0 = 2 * self.lam * np.exp(self.alpha * self.req)
         self.vmax = int(self.lam - 0.5)
 
-        self.rmin = self.req - np.log(2) / self.alpha
-        f = 0.99
-        self.rmax = self.req - np.log(1 - f) / self.alpha
-
     def V(self, r):
-        """Morse potential
+        """Morse potential, V(R->infty) = 0
         - r : interatomic distance (Bohr, a.u.)
         """
         return self.De * (1 - np.exp(-self.alpha * (r - self.req))) ** 2 - self.De
@@ -71,17 +65,18 @@ class Morse:
         )
 
     def E(self, v):
-        """Energy [Hartree] of the v-th (bound) Morse state. E_bound < 0"""
-        vphalf = v + 0.5
-        return self.we * vphalf - (self.we * vphalf) ** 2 / (4 * self.De) - self.De
+        """Energy [Hartree] of the v-th (bound) Morse state. E < 0"""
+        return self.we * (v + 0.5) - (self.we * (v + 0.5)) ** 2 / (4 * self.De) - self.De
 
     def intersection_V(self, E):
         arg = (-self.De + np.sqrt(self.De**2 + self.De * E)) / E
         return self.req + np.log(arg) / self.alpha
     
     def reflection_point(self, E):
+        ''' Returns r where E = V(r)
+        '''
         arg = 1 + np.sqrt((E + self.De)/self.De)
-        return self.req - np.log(arg)/self.alpha
+        return self.req - np.log(arg) / self.alpha
 
     def define_box(self, box_length=10 * ANGSTROM2BOHR):
         self.box_length = box_length
@@ -148,11 +143,14 @@ class Morse:
     def make_rgrid(self, resolution=1000, rmin=None, rmax=None):
         """Make grid of interatomic distances r (Bohr, a.u.)
         - resolution : number of grid points
+        - rmin: r where V(r) = De and r in [0,Req]
+        - rmax: r where V(r) = f*De, f<1
         """
         if rmin is None:
-            rmin = self.rmin
+            rmin = self.req - np.log(2) / self.alpha
         if rmax is None:
-            rmax = self.rmax
+            f = 0.99
+            rmax = self.req - np.log(1 - f) / self.alpha
         self.r = np.linspace(rmin, rmax, resolution)
         return self.r
 
