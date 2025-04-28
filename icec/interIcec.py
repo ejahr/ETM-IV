@@ -67,15 +67,19 @@ class Morse:
     def E(self, v):
         """Energy [Hartree] of the v-th (bound) Morse state. E < 0"""
         return self.we * (v + 0.5) - (self.we * (v + 0.5)) ** 2 / (4 * self.De) - self.De
-
-    def intersection_V(self, E):
-        arg = (-self.De + np.sqrt(self.De**2 + self.De * E)) / E
-        return self.req + np.log(arg) / self.alpha
     
-    def reflection_point(self, E):
-        ''' Returns r where E = V(r)
+    def reflection_point_left(self, E):
+        ''' Returns r where E = V(r), r in (0, Req]
         '''
         arg = 1 + np.sqrt((E + self.De)/self.De)
+        return self.req - np.log(arg) / self.alpha
+    
+    def reflection_point_right(self, E):
+        ''' Returns r where E = V(r), r in [Req, infty)
+        '''
+        if E >= 0:
+            raise ValueError("Energy E must be negative.")
+        arg = 1 - np.sqrt((E + self.De)/self.De)
         return self.req - np.log(arg) / self.alpha
 
     def define_box(self, box_length=10 * ANGSTROM2BOHR):
@@ -83,7 +87,7 @@ class Morse:
 
     def get_lower_bound(self, E, precision=200):
         """ Lower bound for neglecting the diverging r->0 behaviour of the dissociative Morse states. """
-        R = self.intersection_V(E)
+        R = self.reflection_point_left(E)
         R_samples = np.linspace(R / 2, R, num=precision)
         psi_samples = np.array(
             [  # psi_diss() does not work with np.array directly due to mpmath
@@ -106,7 +110,7 @@ class Morse:
             return mpmath.conj(self.psi_diss(E, r)) * self.psi_diss(E, r)
         if lower_bound is None:
             lower_bound = self.get_lower_bound(E)
-        r_reflection = self.reflection_point(E)
+        r_reflection = self.reflection_point_left(E)
         num_intervals = self.estimate_oscillation(E)
         if num_intervals < 10:
             norm = mpmath.quadsubdiv(integrand, [lower_bound, r_reflection, self.rmax, self.box_length], maxdegree=10)
@@ -143,14 +147,13 @@ class Morse:
     def make_rgrid(self, resolution=1000, rmin=None, rmax=None):
         """Make grid of interatomic distances r (Bohr, a.u.)
         - resolution : number of grid points
-        - rmin: r where V(r) = De and r in [0,Req]
-        - rmax: r where V(r) = f*De, f<1
+        - rmin: r where V(r) = 0 and r in [0,Req]
+        - rmax: r where V(r) = -0.01*De
         """
         if rmin is None:
-            rmin = self.req - np.log(2) / self.alpha
+            rmin = self.reflection_point_left(0)
         if rmax is None:
-            f = 0.99
-            rmax = self.req - np.log(1 - f) / self.alpha
+            rmax = self.reflection_point_right(-0.01*self.De)
         self.r = np.linspace(rmin, rmax, resolution)
         return self.r
 
@@ -304,7 +307,7 @@ class InterICEC:
     def integrate_r(self, integrand, vi, E, lower_bound=None):
         if lower_bound is None:
             lower_bound = self.Morse_f.get_lower_bound(E)
-        r_reflection = self.Morse_f.reflection_point(E)
+        r_reflection = self.Morse_f.reflection_point_left(E)
         rmax = max(self.Morse_i.rmax, self.Morse_f.rmax)
 
         num_intervals = self.Morse_f.estimate_oscillation(E)
