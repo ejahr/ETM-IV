@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import copy
 from crosssection.icec.constants import *
 
