@@ -22,7 +22,7 @@ from crosssection.icec.constants import *
 # \end{equation}
 
 class ICEC:
-    """ 
+    """ICEC cross section
     - EA: Electron affinity of A (ev)
     - IP: Ionization potential of B (eV)
     - PI_xs_A: Function, Fit for Photoionization cross section of A- (eV -> Mb)
@@ -41,10 +41,11 @@ class ICEC:
         self.thresholdEnergy = max(0, self.IP_B - self.IP_A)
         self.prefactor = (3 * c**2) / (8 * np.pi)
 
-    def make_energy_grid(self, minEnergy=None, maxEnergy=10, resolution=100, geometric=True): 
+    def make_energy_grid(self, minEnergy=None, maxEnergy=10, num=100, geometric=True): 
         """ Make a suitable grid of incoming electron energies.
         - Energy (eV)
-        - resolution : number of grid points
+        - num : number of grid points
+        # TODO add function where you can define the energy grid directly
         """
         maxEnergy = maxEnergy * EV2HARTREE
         if minEnergy is None:
@@ -52,16 +53,16 @@ class ICEC:
         else:
             minEnergy = minEnergy * EV2HARTREE        
         if geometric:
-            self.energyGrid = np.geomspace(minEnergy, maxEnergy, resolution)
+            self.energyGrid = np.geomspace(minEnergy, maxEnergy, num)
         else:
-            self.energyGrid = np.linspace(minEnergy, maxEnergy, resolution)
+            self.energyGrid = np.linspace(minEnergy, maxEnergy, num)
 
-    def make_R_grid(self, Rmin=2, Rmax=10, resolution=100): 
+    def make_R_grid(self, Rmin=2, Rmax=10, num=100): 
         """ Make a suitable grid of interatomic distances.
         - R (Bohr, a.u.)
-        - resolution : number of grid points
+        - num : number of grid points
         """
-        self.rGrid = np.linspace(Rmin, Rmax, resolution)
+        self.rGrid = np.linspace(Rmin, Rmax, num)
         
     def energy_relation(self, electronE):
         hbarOmega = electronE + self.IP_A
@@ -97,7 +98,6 @@ class ICEC:
     def xs_R(self, electronE):
         """ Calculate cross section (Mb) of ICEC for given range of interatomic distances.
         - electronE : energy of incoming electron (eV) 
-        - R : interatomic distance (Bohr, a.u.)
         """
         electronE = electronE * EV2HARTREE
         if not hasattr(self, 'rGrid'):
@@ -139,9 +139,7 @@ class ICEC:
 class OverlapICEC(ICEC):
     @classmethod
     def from_ICEC(cls, InstanceICEC: ICEC):
-        ''' generate an instance of OverlapInterICEC from an instance of InterICEC 
-        https://stackoverflow.com/questions/71209560/initialize-a-superclass-with-an-existing-object-copy-constructor
-        '''
+        ''' generate an instance of OverlapICEC from an instance of ICEC'''
         new_inst = copy.deepcopy(InstanceICEC) 
         new_inst.__class__ = cls
         return new_inst
