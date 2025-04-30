@@ -23,6 +23,9 @@ class Morse:
     - alpha: Morse parameter
     - lam: Morse parameter (not to be confused with lambda function)
     - vmax: maximum vibrational quantum number
+    - rmin: r where V(r) = V(r->inf), r in (0,re]
+    - rmax: r where V(r) = f*V(r->infty), f<1, r in [re,inf)
+    """
     '''
 
     def __init__(self, mu:float, we:float, re:float, De:float, E0=0):
@@ -36,6 +39,11 @@ class Morse:
         self.lam = np.sqrt(2 * self.mu * self.De) / self.alpha
         self.z0 = 2 * self.lam * np.exp(self.alpha * self.re)
         self.vmax = int(self.lam - 0.5)
+        
+        self.rmin = self.re - np.log(2)/self.alpha
+        f = 0.99
+        self.rmax = self.re - np.log(1-f)/self.alpha
+        
 
     def V(self, r:float):
         '''Morse potential, V(R->infty) = 0
@@ -170,9 +178,9 @@ class Morse:
         - rmax : r where V(r) = -0.01*De
         '''
         if rmin is None:
-            rmin = self.reflection_point_left(0)
+            rmin = self.rmin
         if rmax is None:
-            rmax = self.reflection_point_right(-0.01*self.De)
+            rmax = self.rmax
         self.r = np.linspace(rmin, rmax, num)
         return self.r
 
