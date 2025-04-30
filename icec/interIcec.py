@@ -236,19 +236,19 @@ class InterICEC:
         self.Morse_f = Morse(mu, we, re, De)
 
     def make_energy_grid(
-        self, minEnergy=0, maxEnergy=10, resolution=100, geometric=True
+        self, minEnergy=0, maxEnergy=10, num=100, geometric=True
     ):
         '''Make grid of incoming electron energies (Hartree).
         - minEnergy / maxEnergy [eV]
-        - resolution : number of grid points
+        - num : number of grid points
         '''
         minEnergy = minEnergy * EV2HARTREE
         maxEnergy = maxEnergy * EV2HARTREE
         if geometric:
-            self.energyGrid = np.geomspace(minEnergy, maxEnergy, resolution)
+            self.energyGrid = np.geomspace(minEnergy, maxEnergy, num)
         else:
             self.energyGrid = np.arange(
-                minEnergy, maxEnergy, (maxEnergy - minEnergy) / resolution, dtype=float
+                minEnergy, maxEnergy, (maxEnergy - minEnergy) / num, dtype=float
             )
 
     # ===== BOUND - BOUND TRANSITION =====
