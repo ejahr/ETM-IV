@@ -287,7 +287,10 @@ class InterICEC:
             )
 
     def xs_vivf(self, vi, vf):
-        '''Cross section [Mb] for vi -> vf over range of electron energies.'''
+        '''Cross section [Mb] for vi -> vf over range of electron energies.
+        - vi: initial vibrational quantum number
+        - vf: final vibrational quantum number
+        '''
         if not hasattr(self, "energyGrid"):
             self.make_energy_grid()
         modifiedFC = (abs(self.modified_FC_factor(vi, vf))) ** 2
@@ -298,6 +301,7 @@ class InterICEC:
 
     def xs_vi(self, vi):
         '''Cross section [Mb] for vi -> bound states over range of electron energies.
+        - vi: initial vibrational quantum number
         POOL WORKS ONLY IN JUPYTER ON UNIX BASED SYSTEMS
         '''
         with Pool() as pool:
@@ -318,6 +322,7 @@ class InterICEC:
     def spectrum_bb(self, electronE, vi=0):
         '''Cross sections [Mb] for vi -> bound states given some electron energy.
         - electronE : kinetic energy of incoming electron (Hartree, a.u.)
+        - vi: initial vibrational quantum number
         '''
         electronE *= EV2HARTREE
         spectrum = []
@@ -335,6 +340,12 @@ class InterICEC:
         return mpmath.conj(self.Morse_f.psi_diss(E, r)) * self.Morse_i.psi(vi, r) / r ** 3
     
     def integrate_r(self, integrand, vi, E, lower_bound=None):
+        '''Integration over r
+        - integrand : function to be integrated
+        - electronE : kinetic energy of incoming electron [Hartree, a.u.]
+        - vi: initial vibrational quantum number
+        - E : energy of the dissociative Morse state [Hartree]
+        '''
         if lower_bound is None:
             lower_bound = self.Morse_f.get_lower_bound(E)
         r_reflection = self.Morse_f.reflection_point_left(E)
@@ -453,6 +464,9 @@ class InterICEC:
         return xs_array
     
     def get_density_of_states(self, diss_energies):
+        '''Density of states according to rho(E_i) = 2/(E_{i-2} - E_{i+1})
+        - diss_energies [Hartree] : energies of all possible dissociative states (in a box)
+        '''
         density_of_states = np.zeros(len(diss_energies))
         density_of_states[1:-1] = 2/(diss_energies[2:] - diss_energies[0:-2])
         density_of_states[0] = 1/(diss_energies[1]-diss_energies[0])
@@ -472,7 +486,7 @@ class InterICEC:
     def spectrum_bc(self, electronE, vi, diss_energies):
         '''Cross sections [Mb] for vi -> continuum given a single electron energy.
         - electronE [Hartree] : kinetic energy of incoming electron 
-        - diss_energies [Hartree] : energies of all possible dissociative states (in a box)
+        - diss_energies [Hartree] : energies of all possible dissociative states (in a box of length self.box_length)
         '''
         electronE *= EV2HARTREE
         density_of_states = self.get_density_of_states(diss_energies)
@@ -486,7 +500,7 @@ class InterICEC:
     # ===== PLOTTING FUNCTIONS =====
 
     def plot_xs(self, ax, ICEC_xs, label="ICEC", **kwargs):
-        '''Plots the cross section [Mb] for a given vibrational transition w.r.t. the energy of the incoming electron.'''
+        '''Plot the cross section [Mb] for a given vibrational transition w.r.t. the energy of the incoming electron.'''
         ax.plot(self.energyGrid * HARTREE2EV, ICEC_xs, label=label, **kwargs)
         ax.set_xlabel(r"$E_\text{el}$ [eV]")
         ax.set_ylabel(r"$\sigma$ [Mb]")
@@ -494,7 +508,7 @@ class InterICEC:
         ax.set_title("ICEC cross section")
 
     def plot_PR_xs(self, ax, label="PR", linestyle="dashed", **kwargs):
-        '''Plots the photorecombination cross section [a.u.] w.r.t. the energy of the electron.'''
+        '''Plot the photorecombination cross section [a.u.] w.r.t. the energy of the electron.'''
         PR_xs = np.array([])
         for electronE in self.energyGrid:
             hbarOmega = electronE + self.IP_A
@@ -519,7 +533,6 @@ class OverlapInterICEC(InterICEC):
     @classmethod
     def from_InterICEC(cls, InstanceICEC: InterICEC):
         '''generate an instance of OverlapInterICEC from an instance of InterICEC 
-        https://stackoverflow.com/questions/71209560/initialize-a-superclass-with-an-existing-object-copy-constructor
         '''
         new_inst = copy.deepcopy(InstanceICEC) 
         new_inst.__class__ = cls
