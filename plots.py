@@ -1,3 +1,4 @@
+import os
 import glob
 import numpy as np
 import scipy as sp
@@ -11,8 +12,7 @@ plt.rcParams["font.family"] = "STIXGeneral"
 plt.rcParams.update({"font.size": 18})
 
 # path to the folder containing a folder named 'results' containing the results files
-# e.g. /home/user/project/
-DIRECTORY = "/"
+DIRECTORY = "./"
 
 # energy
 EV2HARTREE = 3.67493e-2
@@ -409,6 +409,7 @@ def generate_xs_plots(plot_setup, process, overlap=False, box_length=10):
 
             set_legend(ax, process, num_plots=4)
             plt.tight_layout()
+            os.makedirs('./plots', exist_ok=True)
             pdf.savefig(fig)  # , bbox_inches = "tight"
             plt.close(fig)
 
