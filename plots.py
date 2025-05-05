@@ -383,8 +383,9 @@ def generate_xs_plots(plot_setup, process, overlap=False, box_length=10):
     and bound-dissociative (or continuum) transitions of the dimer."""
     width, height, xmin, xmax, ymin, ymax = plot_setup
     fname = (
-        DIRECTORY + "plots/" + process + "/" + process + ".xs." + str(box_length) + "A.TEST.pdf"
+        DIRECTORY + "plots/" + process + ".xs." + str(box_length) + "A.pdf"
     )
+    os.makedirs('./plots', exist_ok=True)
     IP_A, PI_xs_A, deg_factor, we, De, vmax = get_values_for_initial_state(process)
     with PdfPages(fname) as pdf:
         for vi in range(vmax + 1):
@@ -409,7 +410,6 @@ def generate_xs_plots(plot_setup, process, overlap=False, box_length=10):
 
             set_legend(ax, process, num_plots=4)
             plt.tight_layout()
-            os.makedirs('./plots', exist_ok=True)
             pdf.savefig(fig)  # , bbox_inches = "tight"
             plt.close(fig)
 
@@ -429,8 +429,9 @@ def generate_all_vi_plots(plot_setup, process, overlap=False, box_length=10):
     set_legend(ax, process, num_plots=4)
     plt.tight_layout()
     fname = (
-        DIRECTORY + "plots/" + process + "/" + process + ".all-vi." + str(box_length) + "A.TEST.pdf"
+        DIRECTORY + "plots/" + process + ".all-vi." + str(box_length) + "A.pdf"
     )
+    os.makedirs('./plots', exist_ok=True)
     fig.savefig(fname)
 
 
@@ -438,8 +439,9 @@ def generate_term_plots(plot_setup, process, overlap=True, box_length=10):
     """Generates figures displaying electron transfer and energy transfer contributions to ICEC."""
     width, height, xmin, xmax, ymin, ymax = plot_setup
     fname = (
-        DIRECTORY + "plots/" + process + "/" + process + ".en-el-transfer." + str(box_length) + "A.TEST.pdf"
+        DIRECTORY + "plots/" + process + ".en-el-transfer." + str(box_length) + "A.pdf"
     )
+    os.makedirs('./plots', exist_ok=True)
     IP_A, PI_xs_A, deg_factor, we, De, vmax = get_values_for_initial_state(process)
     with PdfPages(fname) as pdf:
         for vi in range(vmax + 1):
@@ -480,8 +482,9 @@ def generate_temperature_plot(plot_setup, process, T, overlap=False, box_length=
     plt.tight_layout()
 
     fname = (
-        DIRECTORY + "plots/" + process + "/" + process + ".temperature." + str(box_length) + "A.TEST.pdf"
+        DIRECTORY + "plots/" + process + ".temperature." + str(box_length) + "A.pdf"
     )
+    os.makedirs('./plots', exist_ok=True)
     fig.savefig(fname)
 
 
@@ -504,7 +507,6 @@ generate_term_plots(plot_setup, process, overlap, box_length)
 plot_setup = width, height, xmin, xmax, 1, 1e5
 generate_all_vi_plots(plot_setup, process, overlap, box_length)
 plot_setup = width, height, xmin, xmax, 10, 1e5
-# plot_setup = width, height, xmin, xmax, 1, 1e5
 generate_temperature_plot(plot_setup, process, T, overlap, box_length)
 
 # ===========================
@@ -517,7 +519,6 @@ generate_xs_plots(plot_setup, process)
 plot_setup = width, height, xmin, xmax, 1e-3, 1e2
 generate_all_vi_plots(plot_setup, process)
 plot_setup = width, height, xmin, xmax, 1e-1, ymax
-# plot_setup = width, height, xmin, xmax, 1e-3, ymax
 generate_temperature_plot(plot_setup, process, T)
 
 # ========================================
