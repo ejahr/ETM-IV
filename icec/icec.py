@@ -2,25 +2,9 @@ import numpy as np
 import copy
 from .constants import *
 
-## ICEC cross section for atom - atom
-# Cross section
-# \begin{equation}
-#     \sigma (k) = 
-#     \frac{3 (\hbar c)^4 }{4 \pi} \,
-#     \frac{\sigma_\text{PR}^A(\epsilon_k) \sigma_\text{PI}^B(\omega)}{R^6 (\hbar\omega)^4}
-# \end{equation}
-# \begin{equation}
-#     \sigma (k) = 
-#     \frac{3 \hbar^4 c^2}{8 \pi m_e} \,
-#     \frac{g_{A^-}}{g_A} \,
-#     \frac{\sigma_\text{PI}^{A^-}(\epsilon_k) \sigma_\text{PI}^B(\omega)}
-#         {R^6 \epsilon_k(\hbar\omega)^2}
-# \end{equation}
-# Transferred energy
-# \begin{equation}
-# \hbar\omega = \epsilon_k + IP_{A}
-# \end{equation}
-
+# ==========================================================
+# ============= Asymptotic ICEC cross section ==============
+# ==========================================================
 class ICEC:
     """ICEC cross section
     - EA: Electron affinity of A (ev)
@@ -136,6 +120,10 @@ class ICEC:
         ax.plot(self.energyGrid[mask]*HARTREE2EV, PR_xs[mask], **kwargs)
         
         
+# ==========================================================
+# ============= Asymptotic ICEC cross section ==============
+# ==== for the Overlap (electron transfer) contribution ====
+# ==========================================================
 class OverlapICEC(ICEC):
     @classmethod
     def from_ICEC(cls, InstanceICEC: ICEC):
