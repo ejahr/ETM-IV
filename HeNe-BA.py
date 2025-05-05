@@ -2,15 +2,11 @@
 # The asymptotic cross section is divided by 3 
 # to account for sigma^PI_px = 1/3*sigma^PI for Neon
 
-import sys
 import numpy as np
 from HeNe_input import * # defines constants and parameters
-# declare path to folder containing module crosssection
-sys.path.insert(0, '/mnt/home/elena/icec_project')
-sys.path.insert(0, '/home/elena/icec-project')
-from crosssection.icec.icec import ICEC
-from crosssection.icec.interIcec import InterICEC
-from crosssection.calculations import get_energies, xs_const_R, generate_xs_temperature, generate_spectrum_bb, generate_spectrum_bc, spectrum2d_bc
+from icec.icec import ICEC
+from icec.interIcec import InterICEC
+from icec.calculations import get_energies, xs_const_R, xs_bb, xs_bc, generate_xs_temperature, generate_spectrum_bb, generate_spectrum_bc, spectrum2d_bc
 
 header = "He+ Ne -> Ne+(2px^-1) He | B -> A | 2A1 -> 1B1\n"
 
@@ -24,16 +20,16 @@ min_kinE = 0.05     #eV
 max_kinE = 5        #eV
 num = 50            #number of grid points
 
-electron_energies = [1, 5] #eV for spectrum
+electron_energies = [1] #eV for spectrum
 
 degeneracy = 3.
 # no overlap
 
-# Change to True for corresponding calculations 
-crosssection = False
-temperature = False
-spectrum = False
-spectrum2d = False
+# Change to 1 to enable corresponding calculations 
+crosssection = 1
+temperature = 1
+spectrum = 1
+spectrum2d = 0
 
 icecR = ICEC(*inputHeNe)
 icec = InterICEC(*inputHeNe)
@@ -57,8 +53,8 @@ header_bc += "maximum dissociative energy = " + str(round(max_dissE_for_calc*HAR
 # ====================== CROSS SECTION =======================
 if crosssection:
     xs_const_R(process, header, degeneracy, icec.Morse_i.re, icecR)
-    #xs_bb(process, header, degeneracy, icec)
-    #xs_bc(process, header_bc, degeneracy, diss_energies, icec)
+    xs_bb(process, header, degeneracy, icec)
+    xs_bc(process, header_bc, degeneracy, diss_energies, icec)
     
 if temperature:
     T = [15,77,298]

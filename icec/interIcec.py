@@ -2,10 +2,9 @@ import numpy as np
 import scipy as sp
 import mpmath
 import copy
-import matplotlib.pyplot as plt
 from itertools import repeat
 from multiprocessing import Pool
-from crosssection.icec.constants import *
+from .constants import *
 
 # =========================================================
 # ==================== Morse Potential ====================

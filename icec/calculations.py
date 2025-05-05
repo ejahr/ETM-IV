@@ -1,6 +1,6 @@
-from crosssection.icec.icec import ICEC, OverlapICEC
-from crosssection.icec.interIcec import InterICEC, OverlapInterICEC
-from crosssection.icec.constants import *
+from .icec import ICEC, OverlapICEC
+from .interIcec import InterICEC, OverlapInterICEC
+from .constants import *
 import numpy as np
 import re
 

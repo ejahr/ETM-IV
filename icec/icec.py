@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-from crosssection.icec.constants import *
+from .constants import *
 
 ## ICEC cross section for atom - atom
 # Cross section
