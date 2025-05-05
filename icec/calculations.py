@@ -3,6 +3,7 @@ from .interIcec import InterICEC, OverlapInterICEC
 from .constants import *
 import numpy as np
 import re
+import os
 
 def get_energies(icec: InterICEC, el_state, max_dissE, box_length):
     '''Retrieve precalculated momenta and convert to energies. 
@@ -47,6 +48,7 @@ def xs_const_R(process, header, degeneracy, R, icec:ICEC, overlapicec:OverlapICE
         overlapicec.make_energy_grid(minEnergy)
         xs_array = np.vstack((xs_array, overlapicec.xs_energy(R)))
 
+    os.makedirs('./results', exist_ok=True)
     file_path = "./results/" + process + ".xs.constR.txt"
     np.savetxt(file_path, np.transpose(xs_array), fmt='%1.3e', header=new_header)
 
@@ -83,6 +85,7 @@ def xs_bb(process, header, degeneracy, icec: InterICEC, overlapicec: OverlapInte
             xs = overlapicec.xs_vi(vi)
             xs_array = np.vstack((xs_array, xs))
 
+    os.makedirs('./results', exist_ok=True)
     file_path = "./results/" + process + ".bb.txt"
     np.savetxt(file_path, np.transpose(xs_array), fmt='%1.3e', header=new_header)
 
@@ -109,6 +112,7 @@ def xs_bc(process, header, degeneracy, diss_energies, icec: InterICEC, overlapic
             xs_array = np.vstack((xs_array, xs))
 
     box_length = round(icec.Morse_f.box_length*BOHR2ANGSTROM)
+    os.makedirs('./results', exist_ok=True)
     file_path = "./results/" + process + ".bc." + str(box_length) + "A.txt"
     np.savetxt(file_path, np.transpose(xs_array), fmt='%1.3e', header=new_header)
     
@@ -216,6 +220,7 @@ def generate_spectrum_bc(process, header, degeneracy, electronE, diss_energies, 
         new_header += "| E_in [eV] | E_out [eV] | b->c [a.u.] | vi | -1 (continuum) |" 
     spectrum = spectrum_bc(degeneracy, electronE, diss_energies, icec, overlapicec)
     box_length = round(icec.Morse_f.box_length*BOHR2ANGSTROM)
+    os.makedirs('./results', exist_ok=True)
     file_path = "./results/" + process + ".bc.spectrum."+ str(electronE) + "eV." + str(box_length) + "A.txt" 
     np.savetxt(file_path, spectrum, fmt='%1.3e', header=new_header)  
     
@@ -262,6 +267,7 @@ def generate_spectrum_bb(process, header, degeneracy, electronE, icec: InterICEC
     else:
         new_header += "| E_in [eV] | E_out [eV] | b->b [a.u.] | vi | vf |" 
     spectrum = spectrum_bb(degeneracy, electronE, icec, overlapicec=overlapicec)
+    os.makedirs('./results', exist_ok=True)
     file_path = "./results/" + process + ".bb.spectrum."+ str(electronE) + "eV.txt" 
     np.savetxt(file_path, spectrum, fmt='%1.3e', header=new_header) 
     
