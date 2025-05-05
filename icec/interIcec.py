@@ -528,7 +528,6 @@ class InterICEC:
 # ========== with internuclear vibrational motion ==========
 # ==========================================================
 class OverlapInterICEC(InterICEC):
-        
     @classmethod
     def from_InterICEC(cls, InstanceICEC: InterICEC):
         '''generate an instance of OverlapInterICEC from an instance of InterICEC 
