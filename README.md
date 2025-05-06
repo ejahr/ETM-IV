@@ -1,4 +1,4 @@
-# ICEC with vibrational motion
+# Analytical energy and electron transfer model for ICEC with vibrational motion
 Interatomic Coulombic Electron Capture (ICEC) is an environment-mediated process in which a free electron attaches to a species by transferring excess energy to a neighbor. 
 This implentation incorporates the vibrational motion into an analytical model of the ICEC cross section, including both energy and electron transfer.
 
