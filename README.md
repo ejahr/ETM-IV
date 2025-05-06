@@ -2,6 +2,8 @@
 Interatomic Coulombic Electron Capture (ICEC) is an environment-mediated process in which a free electron attaches to a species by transferring excess energy to a neighbor. 
 This implentation incorporates the vibrational motion into an analytical model of the ICEC cross section, including both energy and electron transfer.
 
+[![DOI](https://zenodo.org/badge/977628832.svg)](https://doi.org/10.5281/zenodo.15348382)
+
 ## Files
 - `HeNe_input.py` : defines the general input parameters for the HeNe+ dimer.
 - `HeNe-*.py` : starts the calculations for the ICEC cross sections for a specific electronic transition. Uses classes and functions defined in `icec/`. Results in _10.6084/m9.figshare.28892498_. Run with `python HeNe-AB.py` as an example.
