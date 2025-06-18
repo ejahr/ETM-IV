@@ -92,13 +92,13 @@ class RMatrixProcessor:
             print("No matching files found.")
             return None, None
 
-    def plot_constR(self, ax, shift=0):
+    def plot_constR(self, ax, shift=0, **kwargs):
         energies, xs = self.get_constR(shift)
         ax.plot(
-            energies, xs, color=self.color, linestyle=":"
+            energies, xs, color=self.color, linestyle=":", **kwargs
         )  # , label=r"$R_\text{e}$ R-matrix"
 
-    def plot_xs(self, ax: plt.Axes, vi):
+    def plot_xs(self, ax: plt.Axes, vi, **kwargs):
         """Plots ICEC cross section corresponding to bound-bound and bound-dissociative (or continuum) transitions of the dimer."""
         energies_bb, xs_bb = self.get_bb(vi)
         energies_bc, xs_bc = self.get_bc(vi)
@@ -106,13 +106,13 @@ class RMatrixProcessor:
             return  # Skip plotting if no b-d data
         if not self.summed:
             ax.plot(
-                energies_bb, xs_bb, color=self.color, linestyle="--"
+                energies_bb, xs_bb, color=self.color, dashes=(5, 3), **kwargs
             )  # , label=r"b-b R-matrix"
-            ax.plot(energies_bc, xs_bc, color=self.color, label=r"R-matrix")  # b-d
+            ax.plot(energies_bc, xs_bc, color=self.color, label=r"R-matrix", **kwargs)  # b-d
         else:
-            xs_bc = self.interpolate(energies_bb, energies_bc, xs_bc)
+            xs_bc = self.interpolate(energies_bb, energies_bc, xs_bc, **kwargs)
             xs = xs_bb + xs_bc
-            ax.plot(energies_bb, xs, color=self.color, label=r"R-matrix")
+            ax.plot(energies_bb, xs, color=self.color, label=r"R-matrix", **kwargs)
 
     def boltzmann_factor(self, we, De, v, T):
         E_morse = we * (v + 0.5) - (we * (v + 0.5)) ** 2 / (4 * De) - De
@@ -218,6 +218,7 @@ class ICECProcessor:
             color=color,
             linestyle=linestyle,
             label=r"$R_\text{e}$" if label else None,
+            lw=2
         )
 
     def get_xs(self, vi, overlap=False, summed=True):
@@ -244,15 +245,15 @@ class ICECProcessor:
         ax.set_xlabel(r"$\epsilon$ [eV]")
         ax.set_ylabel(r"$\sigma$ [Mb]")
 
-    def plot_xs(self, ax: plt.Axes, vi, color="tab:red"):
+    def plot_xs(self, ax: plt.Axes, vi, color="tab:red", **kwargs):
         """Plots the ICEC cross section corresponding to bound-bound and 
         bound-dissociative (or continuum) transitions of the dimer."""
         self.configure_plot(ax)
         self.plot_fixedR(ax, color, label=False, overlap=self.overlap, summed=True)
         energies, xs_bb, xs_bc = self.get_xs(vi, self.overlap)
         mask = energies > 0
-        ax.plot(energies[mask], xs_bb[mask], color=color, linestyle="--")
-        ax.plot(energies[mask], xs_bc[mask], color=color, label=r"model")
+        ax.plot(energies[mask], xs_bb[mask], color=color, dashes=(5, 3), **kwargs)
+        ax.plot(energies[mask], xs_bc[mask], color=color, label=r"model", **kwargs)
 
     def plot_all_vi(self, ax: plt.Axes, vmax):
         """Plots the individual cross section for every initial vibrational state."""
@@ -403,10 +404,11 @@ def generate_xs_plots(plot_setup, process, overlap=False, box_length=10):
                 color="grey",
                 linestyle="--",
                 label=r"$\sigma_\text{PR}$",
+                lw=2
             )
-            Rmatrix.plot_constR(ax, set_rmatrix_shift(process))
-            Rmatrix.plot_xs(ax, vi)
-            icec.plot_xs(ax, vi)
+            Rmatrix.plot_constR(ax, set_rmatrix_shift(process), lw=2)
+            Rmatrix.plot_xs(ax, vi, lw=2)
+            icec.plot_xs(ax, vi, lw=2)
 
             set_legend(ax, process, num_plots=4)
             plt.tight_layout()
@@ -503,11 +505,11 @@ ymin, ymax = 1e-4, 1e6
 plot_setup = width, height, xmin, xmax, ymin, ymax
 generate_xs_plots(plot_setup, process, overlap, box_length)
 plot_setup = width, height, xmin, xmax, 1e-1, 1e5
-generate_term_plots(plot_setup, process, overlap, box_length)
+#generate_term_plots(plot_setup, process, overlap, box_length)
 plot_setup = width, height, xmin, xmax, 1, 1e5
-generate_all_vi_plots(plot_setup, process, overlap, box_length)
+#generate_all_vi_plots(plot_setup, process, overlap, box_length)
 plot_setup = width, height, xmin, xmax, 10, 1e5
-generate_temperature_plot(plot_setup, process, T, overlap, box_length)
+#generate_temperature_plot(plot_setup, process, T, overlap, box_length)
 
 # ===========================
 process = "2A1.1B1"
@@ -517,9 +519,9 @@ ymin, ymax = 1e-4, 1e2
 plot_setup = width, height, xmin, xmax, ymin, ymax
 generate_xs_plots(plot_setup, process)
 plot_setup = width, height, xmin, xmax, 1e-3, 1e2
-generate_all_vi_plots(plot_setup, process)
+#generate_all_vi_plots(plot_setup, process)
 plot_setup = width, height, xmin, xmax, 1e-1, ymax
-generate_temperature_plot(plot_setup, process, T)
+#generate_temperature_plot(plot_setup, process, T)
 
 # ========================================
 process = "1B1.2A1"
@@ -529,9 +531,9 @@ ymin, ymax = 1e-4, 1  # eV
 plot_setup = width, height, xmin, xmax, ymin, ymax
 generate_xs_plots(plot_setup, process)
 plot_setup = width, height, xmin, xmax, 1e-2, 1
-generate_all_vi_plots(plot_setup, process)
+#generate_all_vi_plots(plot_setup, process)
 plot_setup = width, height, xmin, xmax, 1e-2, 1
-generate_temperature_plot(plot_setup, process, T)
+#generate_temperature_plot(plot_setup, process, T)
 
 # ===========================
 process = "1A1.2A1"
@@ -541,8 +543,8 @@ ymin, ymax = 1e-9, 1e5  # eV
 
 plot_setup = width, height, xmin, xmax, ymin, ymax
 generate_xs_plots(plot_setup, process, overlap)
-generate_all_vi_plots(plot_setup, process, overlap)
+#generate_all_vi_plots(plot_setup, process, overlap)
 plot_setup = width, height, xmin, xmax, 1e-6, 1e5
-generate_term_plots(plot_setup, process, overlap)
+#generate_term_plots(plot_setup, process, overlap)
 plot_setup = width, height, xmin, xmax, 1e-6, 1e4
-generate_temperature_plot(plot_setup, process, T, overlap)
+#generate_temperature_plot(plot_setup, process, T, overlap)
