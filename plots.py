@@ -110,7 +110,7 @@ class RMatrixProcessor:
             )  # , label=r"b-b R-matrix"
             ax.plot(energies_bc, xs_bc, color=self.color, label=r"R-matrix", **kwargs)  # b-d
         else:
-            xs_bc = self.interpolate(energies_bb, energies_bc, xs_bc, **kwargs)
+            xs_bc = self.interpolate(energies_bb, energies_bc, xs_bc)
             xs = xs_bb + xs_bc
             ax.plot(energies_bb, xs, color=self.color, label=r"R-matrix", **kwargs)
 
@@ -118,7 +118,7 @@ class RMatrixProcessor:
         E_morse = we * (v + 0.5) - (we * (v + 0.5)) ** 2 / (4 * De) - De
         return np.exp(-E_morse / KB / T)
 
-    def plot_xs_temperature(self, ax: plt.Axes, T, we, De, vmax, color="tab:blue"):
+    def plot_xs_temperature(self, ax: plt.Axes, T, we, De, vmax, color="tab:blue", **kwargs):
         """Calculates and plots the temperature dependent ICEC cross sections."""
         norm = 1.0 / sum(
             self.boltzmann_factor(we, De, vi, T) for vi in range(vmax)
@@ -144,7 +144,7 @@ class RMatrixProcessor:
 
         label = str(T) + r"$\,$K R-matrix"
         if self.summed:
-            ax.plot(energies, norm * avg, color=color)
+            ax.plot(energies, norm * avg, color=color, **kwargs)
         else:
             ax.plot(
                 energies,
@@ -152,8 +152,9 @@ class RMatrixProcessor:
                 color=color,
                 linestyle="--",
                 label=r"b-b " + label,
+                **kwargs
             )
-            ax.plot(energies, norm * avg_bc, color=color, label=r"b-d " + label)
+            ax.plot(energies, norm * avg_bc, color=color, label=r"b-d " + label, **kwargs)
 
 
 class ICECProcessor:
@@ -194,19 +195,20 @@ class ICECProcessor:
         lam = np.sqrt(2 * mu * De) / alpha
         self.vi_max = int(lam - 0.5)
 
-    def plot_fixedR(
+    def plot_constR(
         self,
         ax: plt.Axes,
         color="tab:red",
         linestyle=":",
         label=False,
         overlap=False,
-        summed=False,
+        combined=True,
+        **kwargs
     ):        
         """Plots the ICEC cross section at constant R."""
         if not hasattr(self, "results_constR"):
             self.read_constR_results()
-        if self.overlap and summed:
+        if self.overlap and combined:
             xs = self.results_constR[:, 2] + self.results_constR[:, 1]
         elif overlap:
             xs = self.results_constR[:, 2]
@@ -218,20 +220,20 @@ class ICECProcessor:
             color=color,
             linestyle=linestyle,
             label=r"$R_\text{e}$" if label else None,
-            lw=2
+            **kwargs
         )
 
-    def get_xs(self, vi, overlap=False, summed=True):
+    def get_xs(self, vi, overlap=False, combined=True):
         if not hasattr(self, "results_bb"):
             self.read_xs_results()
         energies = self.results_bb[:, 0]
-        if overlap: # electron transfer contribution
-            index = 2 * vi + 2
+        if overlap: 
+            index = 2 * vi + 2 # electron transfer contribution
         elif self.overlap:
             index = 2 * vi + 1 # energy transfer contribution for a transition where electron transfer is possible
         else:
             index = vi + 1 # energy transfer contribution
-        if self.overlap and summed:
+        if self.overlap and combined:
             xs_bb = self.results_bb[:, index - 1] + self.results_bb[:, index]
             xs_bc = self.results_bc[:, index - 1] + self.results_bc[:, index]
         else:
@@ -245,15 +247,18 @@ class ICECProcessor:
         ax.set_xlabel(r"$\epsilon$ [eV]")
         ax.set_ylabel(r"$\sigma$ [Mb]")
 
-    def plot_xs(self, ax: plt.Axes, vi, color="tab:red", **kwargs):
+    def plot_xs(self, ax: plt.Axes, vi, color="tab:red", summed=False, label=r"model", **kwargs):
         """Plots the ICEC cross section corresponding to bound-bound and 
         bound-dissociative (or continuum) transitions of the dimer."""
         self.configure_plot(ax)
-        self.plot_fixedR(ax, color, label=False, overlap=self.overlap, summed=True)
         energies, xs_bb, xs_bc = self.get_xs(vi, self.overlap)
         mask = energies > 0
-        ax.plot(energies[mask], xs_bb[mask], color=color, dashes=(5, 3), **kwargs)
-        ax.plot(energies[mask], xs_bc[mask], color=color, label=r"model", **kwargs)
+        if summed:
+            xs = xs_bb + xs_bc
+            ax.plot(energies[mask], xs[mask], color=color, label=label, **kwargs)
+        else:
+            ax.plot(energies[mask], xs_bb[mask], color=color, dashes=(5, 3), **kwargs)
+            ax.plot(energies[mask], xs_bc[mask], color=color, label=label, **kwargs)
 
     def plot_all_vi(self, ax: plt.Axes, vmax):
         """Plots the individual cross section for every initial vibrational state."""
@@ -269,21 +274,21 @@ class ICECProcessor:
             ax.plot(energies, xs_bb, color=rgba, linestyle="--", label=label_bb)
             ax.plot(energies, xs_bc, color=rgba, label=label_bc)
 
-    def plot_terms(self, ax: plt.Axes, vi):
+    def plot_terms(self, ax: plt.Axes, vi, **kwargs):
         """Plots the electron transfer and energy transfer contributions to ICEC."""
         self.configure_plot(ax)
 
         color = "tab:red"
-        self.plot_fixedR(ax, overlap=True)
-        energies, xs_bb, xs_bc = self.get_xs(vi, overlap=True, summed=False)
-        ax.plot(energies, xs_bb + xs_bc, color=color, label="electron tf")
+        self.plot_constR(ax, overlap=True, combined=False, **kwargs)
+        energies, xs_bb, xs_bc = self.get_xs(vi, overlap=True, combined=False)
+        ax.plot(energies, xs_bb + xs_bc, color=color, label="electron tf", **kwargs)
 
         color = "tab:orange"
-        self.plot_fixedR(ax, color=color, overlap=False)
-        energies, xs_bb, xs_bc = self.get_xs(vi, overlap=False, summed=False)
-        ax.plot(energies, xs_bb + xs_bc, color=color, label="energy tf")
+        self.plot_fixedR(ax, color=color, overlap=False, **kwargs)
+        energies, xs_bb, xs_bc = self.get_xs(vi, overlap=False, combined=False)
+        ax.plot(energies, xs_bb + xs_bc, color=color, label="energy tf", **kwargs)
 
-    def plot_xs_temperature(self, ax: plt.Axes, T):
+    def plot_xs_temperature(self, ax: plt.Axes, T, **kwargs):
         """Plots the temperature dependent ICEC cross sections."""
         self.configure_plot(ax)
         reds = plt.get_cmap("Reds_r")
@@ -298,7 +303,7 @@ class ICECProcessor:
             label = str(t) + r"$\,$K"
             red = reds(i / (len(T) + 1 / len(T)))
             xs = self.results_temperature[:, i + 1]
-            ax.plot(energies[mask], xs[mask], color=red, label=label)
+            ax.plot(energies[mask], xs[mask], color=red, label=label, **kwargs)
 
     def plot_PR_xs(self, ax: plt.Axes, IP, PI_xs_A, deg_factor, **kwargs):
         """Plots the Photorecombination Cross section [Mb]."""
@@ -408,6 +413,7 @@ def generate_xs_plots(plot_setup, process, overlap=False, box_length=10):
             )
             Rmatrix.plot_constR(ax, set_rmatrix_shift(process), lw=2)
             Rmatrix.plot_xs(ax, vi, lw=2)
+            icec.plot_constR(ax, overlap=overlap, lw=2)
             icec.plot_xs(ax, vi, lw=2)
 
             set_legend(ax, process, num_plots=4)
@@ -471,7 +477,7 @@ def generate_all_vi_plots(plot_setup, process, overlap=False, box_length=10):
 
     IP_A, PI_xs_A, deg_factor, we, De, vmax = get_values_for_initial_state(process)
     icec = ICECProcessor(process, overlap)
-    icec.plot_fixedR(ax, label=True, overlap=overlap, summed=True)
+    icec.plot_constR(ax, label=True, overlap=overlap, combined=True)
     icec.plot_all_vi(ax, vmax)
 
     set_legend(ax, process, num_plots=4)
@@ -498,10 +504,10 @@ def generate_term_plots(plot_setup, process, overlap=True, box_length=10):
             ax.set_ylim(ymin, ymax)
 
             Rmatrix = RMatrixProcessor(process, summed=True)
-            Rmatrix.plot_constR(ax, set_rmatrix_shift(process))
-            Rmatrix.plot_xs(ax, vi)
+            Rmatrix.plot_constR(ax, set_rmatrix_shift(process), lw=2)
+            Rmatrix.plot_xs(ax, vi, lw=2)
             icec = ICECProcessor(process, overlap)
-            icec.plot_terms(ax, vi)
+            icec.plot_terms(ax, vi, lw=2)
 
             set_legend(ax, process, num_plots=2)
             plt.tight_layout()
@@ -521,10 +527,10 @@ def generate_temperature_plot(plot_setup, process, T, overlap=False, box_length=
     Rmatrix = RMatrixProcessor(process=process, summed=True)
     for t in T:
         blue = blues(T.index(t) / (len(T) + 1 / len(T)))
-        Rmatrix.plot_xs_temperature(ax, t, we, De, vmax, color=blue)
+        Rmatrix.plot_xs_temperature(ax, t, we, De, vmax, color=blue, lw=2)
 
     icec = ICECProcessor(process, overlap)
-    icec.plot_xs_temperature(ax, T)
+    icec.plot_xs_temperature(ax, T, lw=2)
 
     set_legend(ax, process, num_plots=4)
     plt.tight_layout()
