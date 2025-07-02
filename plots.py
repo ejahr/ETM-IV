@@ -414,6 +414,52 @@ def generate_xs_plots(plot_setup, process, overlap=False, box_length=10):
             plt.tight_layout()
             pdf.savefig(fig)  # , bbox_inches = "tight"
             plt.close(fig)
+            
+            
+def generate_xs_summed_plots(plot_setup, process, overlap=False, box_length=10):
+    """Generates figures displaying ICEC cross section summed over bound-bound 
+    and bound-dissociative (or continuum) transitions of the dimer."""
+    width, height, xmin, xmax, ymin, ymax = plot_setup
+    if overlap:
+        fname = (
+            DIRECTORY + "plots/" + process + ".xs-summed.el-tf." + str(box_length) + "A.pdf"
+        )
+    else:
+        fname = (
+            DIRECTORY + "plots/" + process + ".xs-summed." + str(box_length) + "A.pdf"
+        )
+    os.makedirs('./plots', exist_ok=True)
+    IP_A, PI_xs_A, deg_factor, we, De, vmax = get_values_for_initial_state(process)
+    with PdfPages(fname) as pdf:
+        for vi in range(vmax + 1):
+            fig, ax = plt.subplots(figsize=(width, height))
+            ax.set_xlim(xmin, xmax)
+            ax.set_ylim(ymin, ymax)
+            
+            icec = ICECProcessor(process, overlap)
+            icec.plot_xs(ax, vi, summed=True, lw=2)
+            Rmatrix = RMatrixProcessor(process, summed=True)
+            Rmatrix.plot_xs(ax, vi, lw=2)
+        
+            if overlap:
+                icec_en = ICECProcessor(process, overlap=False)
+                icec_en.plot_xs(ax, vi, summed=True, lw=2, color='tab:orange', label=r"reference", ls="dashed")
+                
+            icec.plot_PR_xs(
+                ax,
+                IP_A,
+                PI_xs_A,
+                deg_factor,
+                color="grey",
+                linestyle="--",
+                label=r"$\sigma_\text{PR}$",
+                lw=2
+            )
+
+            set_legend(ax, process, num_plots=4)
+            plt.tight_layout()
+            pdf.savefig(fig)  # , bbox_inches = "tight"
+            plt.close(fig)
 
 
 def generate_all_vi_plots(plot_setup, process, overlap=False, box_length=10):
@@ -503,7 +549,9 @@ xmin, xmax = 0, 5  # eV, plot limits
 ymin, ymax = 1e-4, 1e6
 
 plot_setup = width, height, xmin, xmax, ymin, ymax
-generate_xs_plots(plot_setup, process, overlap, box_length)
+#generate_xs_plots(plot_setup, process, overlap, box_length)
+generate_xs_summed_plots(plot_setup, process, overlap=False, box_length=box_length)
+generate_xs_summed_plots(plot_setup, process, overlap=True, box_length=box_length)
 plot_setup = width, height, xmin, xmax, 1e-1, 1e5
 #generate_term_plots(plot_setup, process, overlap, box_length)
 plot_setup = width, height, xmin, xmax, 1, 1e5
@@ -517,7 +565,8 @@ xmin, xmax = 0, 5  # eV
 ymin, ymax = 1e-4, 1e2
 
 plot_setup = width, height, xmin, xmax, ymin, ymax
-generate_xs_plots(plot_setup, process)
+#generate_xs_plots(plot_setup, process)
+generate_xs_summed_plots(plot_setup, process)
 plot_setup = width, height, xmin, xmax, 1e-3, 1e2
 #generate_all_vi_plots(plot_setup, process)
 plot_setup = width, height, xmin, xmax, 1e-1, ymax
@@ -529,7 +578,7 @@ xmin, xmax = 2.5, 8  # eV
 ymin, ymax = 1e-4, 1  # eV
 
 plot_setup = width, height, xmin, xmax, ymin, ymax
-generate_xs_plots(plot_setup, process)
+#generate_xs_plots(plot_setup, process)
 plot_setup = width, height, xmin, xmax, 1e-2, 1
 #generate_all_vi_plots(plot_setup, process)
 plot_setup = width, height, xmin, xmax, 1e-2, 1
@@ -542,7 +591,7 @@ xmin, xmax = 2.5, 8  # eV
 ymin, ymax = 1e-9, 1e5  # eV
 
 plot_setup = width, height, xmin, xmax, ymin, ymax
-generate_xs_plots(plot_setup, process, overlap)
+#generate_xs_plots(plot_setup, process, overlap)
 #generate_all_vi_plots(plot_setup, process, overlap)
 plot_setup = width, height, xmin, xmax, 1e-6, 1e5
 #generate_term_plots(plot_setup, process, overlap)
